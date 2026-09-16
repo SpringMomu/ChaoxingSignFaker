@@ -19,8 +19,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -381,23 +385,39 @@ class MainActivity : ComponentActivity() {
                                             navController,
                                             destination!!,
                                             enterTransition = {
-                                                fadeIn(
-                                                    animationSpec = tween(300)
+                                                slideInHorizontally(
+                                                    initialOffsetX = { it }
                                                 )
                                             },
                                             exitTransition = {
-                                                fadeOut(
-                                                    animationSpec = tween(300)
+                                                slideOutHorizontally(
+                                                    targetOffsetX = { -it / 2 }
+                                                ) + scaleOut(
+                                                    targetScale = 0.7f
+                                                ) + fadeOut()
+                                            },
+                                            popEnterTransition = {
+                                                slideInHorizontally(
+                                                    initialOffsetX = { -it / 2 }
+                                                ) + scaleIn(
+                                                    initialScale = 0.7f
+                                                ) + fadeIn()
+                                            },
+                                            popExitTransition = {
+                                                slideOutHorizontally(
+                                                    targetOffsetX = { it }
                                                 )
                                             },
                                             predictivePopEnterTransition = {
-                                                fadeIn(
-                                                    animationSpec = tween(300)
-                                                )
+                                                slideInHorizontally(
+                                                    initialOffsetX = { -it / 2 }
+                                                ) + scaleIn(
+                                                    initialScale = 0.7f
+                                                ) + fadeIn()
                                             },
                                             predictivePopExitTransition = {
-                                                fadeOut(
-                                                    animationSpec = tween(300)
+                                                slideOutHorizontally(
+                                                    targetOffsetX = { it }
                                                 )
                                             },
                                         ) {
@@ -651,11 +671,17 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     ) {
                                                         OutlinedButton(onClick = {
+                                                            hapticFeedback.performHapticFeedback(
+                                                                HapticFeedbackType.ContextClick
+                                                            )
                                                             showExitCloneDialog = false
                                                         }) {
                                                             Text("否")
                                                         }
                                                         Button(onClick = {
+                                                            hapticFeedback.performHapticFeedback(
+                                                                HapticFeedbackType.ContextClick
+                                                            )
                                                             showExitCloneDialog = false
                                                             exitCloneMode()
                                                         }) {
@@ -664,6 +690,9 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                     TextButton(
                                                         onClick = {
+                                                            hapticFeedback.performHapticFeedback(
+                                                                HapticFeedbackType.ContextClick
+                                                            )
                                                             showExitCloneDialog = false
                                                             finishAffinity()
                                                         },

@@ -14,7 +14,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import io.sentry.Sentry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -108,7 +107,7 @@ fun Throwable.toastReport(
             Toast.LENGTH_LONG
         ).show()
     } else if (this !is ChaoxingPredictableException) {
-        Sentry.captureException(this)
+
         Toast.makeText(
             context,
             "${prefixTips?.plus(" ") ?: ""}预期外错误:${this.getPredictableMessage()}",
@@ -153,7 +152,7 @@ fun Throwable.snackbarReport(
             }
         }
     } else if (this !is ChaoxingPredictableException) {
-        Sentry.captureException(this)
+
         if (shouldDismiss)
             snackbarHostState?.currentSnackbarData?.dismiss()
         coroutineScope.launch {
@@ -167,7 +166,7 @@ fun Throwable.snackbarReport(
             }
         }
     } else if (this.cause != null && this.cause !is ChaoxingPredictableException) {
-        Sentry.captureException(this)
+
         this.cause?.let {
             if (shouldDismiss)
                 snackbarHostState?.currentSnackbarData?.dismiss()

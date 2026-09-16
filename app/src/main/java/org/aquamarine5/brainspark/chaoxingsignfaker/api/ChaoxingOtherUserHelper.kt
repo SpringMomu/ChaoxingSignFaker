@@ -84,7 +84,7 @@ object ChaoxingOtherUserHelper {
             val faceObjectIds = selectedFaceObjectIds
                 .distinct()
                 .filter { it in availableFaceObjectIds }.take(ChaoxingFaceHelper.MAX_FACE_IMAGES)
-            "http://cdn.aquamarine5.fun/?phone=${sharedEntity.phoneNumber}&pwd=${
+            "cxsignfaker://import?phone=${sharedEntity.phoneNumber}&pwd=${
                 Uri.encode(sharedEntity.encryptedPassword)
             }&name=${
                 Uri.encode(sharedEntity.userName)

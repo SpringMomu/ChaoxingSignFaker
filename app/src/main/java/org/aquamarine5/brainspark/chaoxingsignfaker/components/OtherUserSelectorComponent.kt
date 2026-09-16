@@ -98,7 +98,6 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
-import io.sentry.Sentry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -313,7 +312,7 @@ fun OtherUserSelectorComponent(
                                 }.onFailure {
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.Reject)
                                     if (it !is ChaoxingPredictableException) {
-                                        Sentry.captureException(it)
+
                                     }
                                     errorMessage = "登录失败：" + (it.message ?: "未知错误")
                                 }

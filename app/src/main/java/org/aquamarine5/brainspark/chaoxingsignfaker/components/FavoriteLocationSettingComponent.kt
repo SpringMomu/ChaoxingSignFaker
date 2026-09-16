@@ -52,6 +52,7 @@ import com.baidu.location.BDLocation
 import com.baidu.location.LocationClient
 import com.baidu.location.LocationClientOption
 import com.baidu.mapapi.SDKInitializer
+import com.baidu.mapapi.OpenLogUtil
 import com.baidu.mapapi.map.BaiduMap
 import com.baidu.mapapi.map.BaiduMapOptions
 import com.baidu.mapapi.map.BitmapDescriptorFactory
@@ -141,7 +142,11 @@ fun FavoriteLocationSettingComponent(modifier: Modifier = Modifier) {
     if (locationPermissionsState.allPermissionsGranted) {
         val isInitialized = remember { SDKInitializer.isInitialized() }
         if (!isInitialized) {
-            SDKInitializer.initialize(context.applicationContext)
+            OpenLogUtil.setNativeLogAnalysisEnable(false)
+                OpenLogUtil.setMapLogEnable(false)
+                SDKInitializer.setDebugMode(false)
+                SDKInitializer.setHttpsEnable(true)
+                SDKInitializer.initialize(context.applicationContext)
         }
         val locationClient = remember {
             LocationClient(context).apply {

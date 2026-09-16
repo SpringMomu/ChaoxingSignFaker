@@ -6,72 +6,17 @@
 
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChaoxingSignFaker</title>
+    <title>ChaoxingSignFaker 账号导入</title>
     <style>
-        body {
-            font-family: 'Microsoft YaHei', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-
-        #button {
-            width: 100px;
-            height: 40px;
-            line-height: 40px;
-            text-align: center;
-            background-color: #007bff;
-            color: #fff;
-            cursor: pointer;
-            border-radius: 5px;
-        }
+        body { font-family: sans-serif; max-width: 40rem; margin: 4rem auto; padding: 1rem; }
     </style>
 </head>
-
 <body>
-    <div id="info"></div>
-    <div onclick="download()" id="button">下载</div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            if (window.location.href.indexOf("phone") > 0) {
-                document.getElementById('info').innerText = '请使用 随地大小签APP（ChaoxingSignFaker） 扫码。';
-
-            }
-            var myTimeout = setTimeout(function () {
-                download();
-            }, 1000);
-
-            window.location.href = "cxsignfaker://import" + window.location.href.split("cdn.aquamarine5.fun")[1];
-        });
-
-        // 首先获取配置文件
-        function download() {
-            const configUrl = 'http://cdn.aquamarine5.fun/chaoxingsignfaker_stackbricks_v2_manifest.json';
-            fetch(configUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        console.error('获取配置文件失败');
-                        return;
-                    }
-                    return response.json();
-                })
-                .then(config => {
-                    if (!config.latestStable || !config.latestStable.downloadUrl) {
-                        console.error('配置文件格式无效');
-                        return;
-                    }
-
-                    const downloadPath = config.latestStable.downloadUrl;
-                    window.location.href = `http://cdn.aquamarine5.fun/${downloadPath}`
-                    fetchData(downloadPath);
-                })
-        }
-    </script>
+    <h1>账号导入</h1>
+    <p>请在随地大小签应用的代签页面扫描二维码，或使用“链接导入”粘贴分享内容。</p>
+    <p>本地构建版本使用 cxsignfaker://import 应用链接分享账号。</p>
 </body>
-
 </html>

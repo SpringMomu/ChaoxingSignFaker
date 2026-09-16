@@ -9,7 +9,6 @@ package org.aquamarine5.brainspark.chaoxingsignfaker.api
 import android.content.Context
 import android.graphics.Bitmap
 import com.alibaba.fastjson2.JSONObject
-import io.sentry.Sentry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -103,8 +102,6 @@ object ChaoxingFaceHelper {
                     client.userEntity.clientId?.let { clientId ->
                         addSignToken(clientId, fields, cxtime)
                     }
-                }.onFailure {
-                    Sentry.captureException(it)
                 }
             }
     }
@@ -136,7 +133,6 @@ object ChaoxingFaceHelper {
     private fun md5(value: String): String =
         MessageDigest.getInstance("MD5").digest(value.toByteArray(Charsets.UTF_8))
             .joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
-
 
     fun getFaceImageFile(context: Context, objectId: String): File {
         checkThrowFaceException(objectId.isNotBlank()) { "人脸照片 ID 不能为空" }

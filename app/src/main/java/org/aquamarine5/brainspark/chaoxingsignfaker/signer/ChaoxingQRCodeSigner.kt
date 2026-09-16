@@ -7,7 +7,6 @@
 package org.aquamarine5.brainspark.chaoxingsignfaker.signer
 
 import com.alibaba.fastjson2.JSONObject
-import com.google.mlkit.vision.barcode.common.Barcode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -34,9 +33,9 @@ class ChaoxingQRCodeSigner(
     baseSignInfo
 ) {
     companion object {
-        fun parseQRCode(qrcode: Barcode): String {
-            return (qrcode.rawValue ?: qrcode.url?.url)?.toHttpUrlOrNull()?.queryParameter("enc")
-                ?: throw QRCodeParseException(qrcode.rawValue ?: "null")
+        fun parseQRCode(qrcode: String): String {
+            return qrcode.toHttpUrlOrNull()?.queryParameter("enc")
+                ?: throw QRCodeParseException(qrcode)
         }
     }
 

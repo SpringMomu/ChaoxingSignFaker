@@ -144,11 +144,19 @@ object ChaoxingDeviceInfoHelper {
     private fun getMediaDrmId(): String =
         runCatching {
             val widevineUuid = UUID(-0x121074568629b532L, -0x5c37d8232ae2de13L)
-            MediaDrm(widevineUuid).use { mediaDrm ->
+            val mediaDrm = MediaDrm(widevineUuid)
+            try {
                 Base64.encodeToString(
                     mediaDrm.getPropertyByteArray(MediaDrm.PROPERTY_DEVICE_UNIQUE_ID),
                     Base64.NO_WRAP
                 )
+            } finally {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    mediaDrm.close()
+                } else {
+                    @Suppress("DEPRECATION")
+                    mediaDrm.release()
+                }
             }
         }.getOrDefault("")
 

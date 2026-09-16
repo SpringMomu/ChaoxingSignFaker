@@ -7,8 +7,8 @@
 package org.aquamarine5.brainspark.chaoxingsignfaker.entity
 
 import androidx.compose.runtime.Immutable
-import com.google.mlkit.vision.barcode.common.Barcode
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import java.net.URI
+import java.net.URLDecoder
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingOtherUserHelper
 
 @Immutable
@@ -19,15 +19,21 @@ data class ChaoxingOtherUserSharedEntity(
     val faceObjectIds: List<String> = emptyList(),
 ) {
     companion object {
-        fun parseFromQRCode(qrcode: Barcode): ChaoxingOtherUserSharedEntity {
-            if (qrcode.url == null)
-                throw ChaoxingOtherUserHelper.NotAvailableQRCodeException("二维码不是一个有效的链接")
+        fun parseFromQRCode(qrcode: String): ChaoxingOtherUserSharedEntity {
             return runCatching {
-                val url = qrcode.url!!.url!!.toHttpUrl()
-                val phoneNumber = url.queryParameter("phone")!!
-                val password = url.queryParameter("pwd")!!
-                val userName = url.queryParameter("name")!!
-                val faceObjectIds = url.queryParameter("face")
+                val url = URI(qrcode)
+                require(url.scheme in listOf("http", "https", "cxsignfaker"))
+                require(url.scheme != "cxsignfaker" || url.host == "import")
+                val parameters = requireNotNull(url.rawQuery).split('&').associate { part ->
+                    val pair = part.split('=', limit = 2)
+                    URLDecoder.decode(pair[0], "UTF-8") to
+                        URLDecoder.decode(pair.getOrElse(1) { "" }, "UTF-8")
+                }
+                val phoneNumber = requireNotNull(parameters["phone"])
+                val password = requireNotNull(parameters["pwd"])
+                val userName = requireNotNull(parameters["name"])
+                require(phoneNumber.isNotBlank() && password.isNotBlank() && userName.isNotBlank())
+                val faceObjectIds = parameters["face"]
                     ?.split(',')
                     ?.filter { it.isNotBlank() }
                     ?.distinct()

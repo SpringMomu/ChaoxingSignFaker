@@ -29,7 +29,6 @@
 -dontwarn com.baidu.**
 -dontnote com.baidu.location.**
 -dontwarn com.baidu.location.**
--keep class org.aquamarine5.brainspark.stackbricks.NoAvailableManifestException
 -keep class androidx.compose.runtime.LeftCompositionCancellationException
 -keep class androidx.compose.runtime.ForgottenCoroutineScopeException
 -keep class androidx.datastore.*.** {*;}
@@ -39,17 +38,10 @@
    <fields>;
 }
 
--keep class com.umeng.** {*;}
--dontwarn com.umeng.**
--dontnote com.umeng.**
 
--keep class org.repackage.** {*;}
 
--keep class com.uyumao.** { *; }
 
--keep class com.uc.** { *; }
 
--keep class com.efs.** { *; }
 
 -keepclassmembers class * {
    public <init> (org.json.JSONObject);
@@ -106,6 +98,5 @@
 public static final int *;
 }
 
--keep class com.google.mlkit.** { *; }
 -keep class ai.onnxruntime.** { *; }
 -dontwarn ai.onnxruntime.**

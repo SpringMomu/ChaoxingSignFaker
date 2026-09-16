@@ -6,7 +6,6 @@
 
 package org.aquamarine5.brainspark.chaoxingsignfaker.screen
 
-import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -16,13 +15,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -54,7 +51,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -64,12 +60,9 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CustomizeClientCard
 import org.aquamarine5.brainspark.chaoxingsignfaker.ui.theme.FontGilroy
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.UMengHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.displaySnackbar
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.snackbarReport
-import org.aquamarine5.brainspark.stackbricks.StackbricksComponent
-import org.aquamarine5.brainspark.stackbricks.StackbricksService
 
 @Serializable
 data class LoginDestination(
@@ -79,7 +72,6 @@ data class LoginDestination(
 @Composable
 fun LoginPage(
     destination: LoginDestination,
-    stackbricksService: StackbricksService,
     navToCourseListDestination: () -> Unit
 ) {
     var phoneNumber by remember { mutableStateOf("") }
@@ -156,7 +148,7 @@ fun LoginPage(
                 coroutineScope.launch {
                     runCatching {
                         ChaoxingHttpClient.create(phoneNumber, password, context)
-                        UMengHelper.onLoginEvent(context, phoneNumber)
+
                     }.onFailure {
                         it.snackbarReport(
                             snackbarHost,
@@ -241,67 +233,8 @@ fun LoginPage(
                             )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-                        StackbricksComponent(stackbricksService)
-
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Button(
-                            onClick = {
-                                runCatching {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
-                                    context.startActivity(Intent(Intent.ACTION_SEND).apply {
-                                        setData("mailto:aquamarine5forever@gmail.com".toUri())
-                                        putExtra(Intent.EXTRA_EMAIL, "aquamarine5forever@gmail.com")
-                                        putExtra(Intent.EXTRA_CC, "aquamarine5forever@gmail.com")
-                                        putExtra(
-                                            Intent.EXTRA_SUBJECT,
-                                            "Send to ChaoxingSignFaker:\n"
-                                        )
-                                        putExtra(Intent.EXTRA_TEXT, "Your content:")
-                                    })
-                                }
-                            },
-                            shape = RoundedCornerShape(18.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC08EAF))
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(3.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painterResource(R.drawable.ic_mail),
-                                    contentDescription = "mail"
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(buildAnnotatedString {
-                                    append("还是有问题？\n联系作者发送邮件到：")
-                                    withStyle(
-                                        SpanStyle(
-                                            fontFamily = FontGilroy,
-                                            fontSize = 14.sp
-                                        )
-                                    ) {
-                                        append("aquamarine5forever")
-                                    }
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                        append("@")
-                                    }
-                                    withStyle(
-                                        SpanStyle(
-                                            fontFamily = FontGilroy,
-                                            fontSize = 14.sp
-                                        )
-                                    ) {
-                                        append("gmail.com")
-                                    }
-                                })
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "ChaoxingSignFaker versionName:${BuildConfig.VERSION_NAME}, versionCode: ${BuildConfig.VERSION_CODE}, buildDate: ${BuildConfig.releaseDate}, channel: ${BuildConfig.umengChannel}",
+                            "ChaoxingSignFaker versionName:${BuildConfig.VERSION_NAME}, versionCode: ${BuildConfig.VERSION_CODE}, buildDate: ${BuildConfig.releaseDate}",
                             fontSize = 10.sp,
                             lineHeight = 12.sp,
                             color = Color.Gray

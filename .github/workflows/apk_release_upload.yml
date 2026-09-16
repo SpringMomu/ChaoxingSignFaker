@@ -26,16 +26,12 @@ jobs:
         run: chmod +x gradlew
         env:
           GHP_TOKEN: ${{ secrets.GHP_TOKEN }}
-          UMENG_CHANNEL: GithubRelease
-          SENTRY_AUTH_TOKEN : ${{ secrets.SENTRY_AUTH_TOKEN }}
           keystorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           imEncryptedKey: ${{ secrets.IMENCRYPTEDKEY }}
       - name: Build apk file with Gradle
         run: ./gradlew assembleRelease
         env:
           GHP_TOKEN: ${{ secrets.GHP_TOKEN }}
-          UMENG_CHANNEL: GithubRelease
-          SENTRY_AUTH_TOKEN : ${{ secrets.SENTRY_AUTH_TOKEN }}
           keystorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           imEncryptedKey: ${{ secrets.IMENCRYPTEDKEY }}
       - name: Get version code
@@ -49,7 +45,5 @@ jobs:
         run: gh release upload ${{steps.version.outputs.VERSION}} app/build/outputs/apk/release/app-release.apk
         env:
           GH_TOKEN: ${{ secrets.GHP_TOKEN }}
-          UMENG_CHANNEL: GithubRelease
-          SENTRY_AUTH_TOKEN : ${{ secrets.SENTRY_AUTH_TOKEN }}
           imEncryptedKey: ${{ secrets.IMENCRYPTEDKEY }}
           keystorePassword: ${{ secrets.KEYSTORE_PASSWORD }}

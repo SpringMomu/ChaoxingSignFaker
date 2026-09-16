@@ -6,7 +6,6 @@
 
 package org.aquamarine5.brainspark.chaoxingsignfaker.screen
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
@@ -30,7 +29,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +37,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,21 +50,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineBreak
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -78,20 +71,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
-import org.aquamarine5.brainspark.chaoxingsignfaker.BuildConfig
 import org.aquamarine5.brainspark.chaoxingsignfaker.R
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingCourseHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingRecommendHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.SignDestination
-import org.aquamarine5.brainspark.chaoxingsignfaker.components.BlockedContent
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CenterCircularProgressIndicator
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CourseInfoColumnCard
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.NetworkExceptionComponent
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.NewFeatureTipsCard
-import org.aquamarine5.brainspark.chaoxingsignfaker.components.SnackbarAlertDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.datastore.ChaoxingCourseClass
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingCourseEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.RecommendActivityEntity
@@ -102,12 +91,9 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.disableCode
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.disableComposableCode
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.snackbarReport
-import org.aquamarine5.brainspark.stackbricks.StackbricksService
-import org.aquamarine5.brainspark.stackbricks.StackbricksVersionData
 import java.time.Instant
 import java.time.LocalDateTime
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 @Serializable
 data class CourseListDestination(
@@ -125,9 +111,7 @@ private const val SORT_COMMON = 0
 @Composable
 fun CourseListScreen(
     destination: CourseListDestination,
-    stackbricksService: StackbricksService,
     navToDetailDestination: (ChaoxingCourseEntity) -> Unit,
-    onNewVersionAvailable: () -> Unit,
     navToSettingDestination: () -> Unit,
     navToSignActivityDestination: (SignDestination) -> Unit,
     navToLoginDestination: () -> Unit,
@@ -141,8 +125,6 @@ fun CourseListScreen(
     }
     val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
-    var newestVersionData by rememberSaveable { mutableStateOf<StackbricksVersionData?>(null) }
-    var isForceInstall by rememberSaveable { mutableStateOf(false) }
     val snackbarHost = LocalSnackbarHostState.current
     var recommendActivities by remember { mutableStateOf<List<RecommendActivityEntity>?>(null) }
     var isFetchedFailure by remember { mutableStateOf<Result<*>?>(null) }
@@ -150,21 +132,6 @@ fun CourseListScreen(
     val isCaptchaAutoResolveLearntTooltip = rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            launch {
-                runCatching {
-                    withTimeout(2.seconds) {
-                        if (stackbricksService.internalVersionData == null) {
-                            newestVersionData = stackbricksService.isNeedUpdate()
-                            newestVersionData?.forceInstallLessVersion?.let {
-                                isForceInstall =
-                                    (it > BuildConfig.VERSION_CODE)
-                            }
-                        }
-                    }
-                }.onFailure {
-                    it.snackbarReport(snackbarHost, coroutineScope, "检查更新失败", hapticFeedback)
-                }
-            }
             disableCode {
                 recommendActivities =
                     ChaoxingRecommendHelper.checkRecommendedActivities(context)
@@ -230,102 +197,7 @@ fun CourseListScreen(
             }
         }
     }
-    var isEmergencyToSkipUpdate by remember { mutableStateOf(false) }
-    if (isEmergencyToSkipUpdate) {
-        SnackbarAlertDialog(onDismissRequest = {
-            isEmergencyToSkipUpdate = false
-        }, dismissButton = {
-            TextButton(onClick = {
-                isEmergencyToSkipUpdate = false
-                newestVersionData = null
-            }) {
-                Text("着急签到一会更新")
-            }
-        }, confirmButton = {
-            Button(onClick = {
-                navToSettingDestination()
-            }) {
-                Text("现在去更新")
-            }
-        }, icon = {
-            Icon(
-                painterResource(R.drawable.ic_arrow_big_up_dash),
-                null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }, text = {
-            Text("此版本设置了强制更新，强烈建议进行更新，忽略更新可能导致签到失败或其他意外的BUG。")
-        })
-    }
-    if (newestVersionData != null) {
-        LaunchedEffect(newestVersionData) {
-            onNewVersionAvailable()
-        }
-        SnackbarAlertDialog(onDismissRequest = {
-            if (isForceInstall) {
-                Toast.makeText(context, "必须更新应用", Toast.LENGTH_SHORT).show()
-            } else {
-                newestVersionData = null
-            }
-        }, confirmButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                Button(onClick = {
-                    navToSettingDestination()
-                }) {
-                    Text("去更新", maxLines = 1)
-                }
-                TextButton(onClick = {
-                    if (isForceInstall)
-                        isEmergencyToSkipUpdate = true
-                    else
-                        newestVersionData = null
-                }) {
-                    Text("我着急签到，来不及更新")
-                }
-            }
-        }, text = {
-            Column {
-                Text(buildAnnotatedString {
-                    append("检测到新版本：")
-                    withStyle(
-                        SpanStyle(
-                            fontWeight = FontWeight.Bold, fontFamily = FontGilroy
-                        )
-                    ) {
-                        append(
-                            newestVersionData?.versionName
-                                ?: stackbricksService.internalVersionData?.versionName
-                        )
-                    }
-                    append("\n当前版本：")
-                    withStyle(
-                        SpanStyle(
-                            fontWeight = FontWeight.Bold, fontFamily = FontGilroy
-                        )
-                    ) {
-                        append(stackbricksService.getCurrentVersionName())
-                    }
-                    append("\n更新日志：\n")
-                }
-                )
-                val changelogRaw = newestVersionData?.changelog
-                    ?: stackbricksService.internalVersionData?.changelog ?: "暂无更新日志"
-                val changelogGray = MaterialTheme.colorScheme.onSurfaceVariant
-                Text(
-                    remember(changelogRaw, changelogGray) {
-                        parseChangelogToAnnotatedString(changelogRaw, changelogGray)
-                    },
-                    fontSize = 11.sp,
-                    lineHeight = 12.sp
-                )
-            }
-        }, title = {
-            Text("有新版本可用！")
-        }, icon = {
-            Icon(painterResource(R.drawable.ic_circle_arrow_up), null)
-        })
-    }
-    BlockedContent {
+
         Column(
             modifier = Modifier
                 .padding(16.dp, 0.dp, 16.dp, 0.dp)
@@ -740,45 +612,5 @@ fun CourseListScreen(
                 }
             }
         }
-    }
-}
 
-private fun parseChangelogToAnnotatedString(
-    raw: String,
-    gray: Color
-): AnnotatedString {
-    var boldDepth = 0
-    var italicDepth = 0
-    var underlineDepth = 0
-    var grayDepth = 0
-    fun currentStyle() = SpanStyle(
-        fontWeight = if (boldDepth > 0) FontWeight.Bold else null,
-        fontStyle = if (italicDepth > 0) FontStyle.Italic else null,
-        textDecoration = if (underlineDepth > 0) TextDecoration.Underline else null,
-        color = if (grayDepth > 0) gray else Color.Unspecified
-    )
-    return buildAnnotatedString {
-        var pos = 0
-        Regex("<(/?)([biug])>", RegexOption.IGNORE_CASE).findAll(raw).forEach { match ->
-            if (match.range.first > pos) {
-                withStyle(currentStyle()) {
-                    append(raw.substring(pos, match.range.first))
-                }
-            }
-            val isClosing = match.groupValues[1] == "/"
-            val delta = if (isClosing) -1 else 1
-            when (match.groupValues[2].lowercase()) {
-                "b" -> boldDepth = (boldDepth + delta).coerceAtLeast(0)
-                "i" -> italicDepth = (italicDepth + delta).coerceAtLeast(0)
-                "u" -> underlineDepth = (underlineDepth + delta).coerceAtLeast(0)
-                "g" -> grayDepth = (grayDepth + delta).coerceAtLeast(0)
-            }
-            pos = match.range.last + 1
-        }
-        if (pos < raw.length) {
-            withStyle(currentStyle()) {
-                append(raw.substring(pos))
-            }
-        }
-    }
 }

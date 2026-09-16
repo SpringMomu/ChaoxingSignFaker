@@ -74,7 +74,6 @@ enum class ChaoxingClientInfo(
     }
 }
 
-
 fun initializeClientInfo(userAgent: String, packageName: String) {
     ChaoxingClientInfo.fromIdentity(userAgent).let {
         if (it == null) {
@@ -124,7 +123,7 @@ fun CustomizeClientCard(onClose: (() -> Unit)? = null) {
         ) {
             Icon(
                 painterResource(R.drawable.ic_settings),
-                contentDescription = "sponsor",
+                contentDescription = "自定义客户端",
                 modifier = Modifier.size(40.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))

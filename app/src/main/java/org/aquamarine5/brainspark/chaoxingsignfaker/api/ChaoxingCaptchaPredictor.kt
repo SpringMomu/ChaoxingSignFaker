@@ -45,7 +45,9 @@ object ChaoxingCaptchaPredictor {
             if (ortSession != null || !isAvailable) return
             runCatching {
                 context.assets.open(MODEL_FILENAME).use { stream ->
-                    ortSession = OrtEnvironment.getEnvironment().createSession(stream.readBytes())
+                    val environment = OrtEnvironment.getEnvironment()
+                    environment.setTelemetry(false)
+                    ortSession = environment.createSession(stream.readBytes())
                 }
             }.onFailure { e ->
                 e.printStackTrace()

@@ -59,7 +59,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.R
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingCourseHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClientPool
-import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingSignHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.SignDestination
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingSignResult
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CaptchaHandlerDialog
@@ -72,7 +71,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.components.NotReadyToSignNot
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.OtherUserSelectorComponent
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SignOutRedirectTips
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SignPotentialWarningTips
-import org.aquamarine5.brainspark.chaoxingsignfaker.components.SponsorPopupDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingLocationSignEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingSignActivityEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingSignActivityStatus
@@ -81,11 +79,9 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingSignStatus
 import org.aquamarine5.brainspark.chaoxingsignfaker.signer.ChaoxingGestureSigner
 import org.aquamarine5.brainspark.chaoxingsignfaker.signer.ChaoxingSignHandler
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.UMengHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.displaySnackbar
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.snackbarReport
 import kotlin.time.Duration.Companion.milliseconds
-
 
 @Serializable
 data class GestureSignDestination(
@@ -118,7 +114,6 @@ data class GestureSignDestination(
     }
 }
 
-
 @Composable
 fun GestureSignScreen(
     destination: GestureSignDestination,
@@ -139,10 +134,7 @@ fun GestureSignScreen(
             destination
         )
     }
-    var isSponsor by remember { mutableStateOf(false) }
-    if (isSponsor) {
-        SponsorPopupDialog()
-    }
+
     var captchaValidateParams by remember {
         mutableStateOf<CaptchaHandlerParams<ChaoxingGestureSigner>>(
             null
@@ -454,18 +446,9 @@ fun GestureSignScreen(
                                         }
                                 }
                             },
-                            onSigningFinished = { _, name, isOtherUser ->
-                                coroutineScope.launch {
-                                    UMengHelper.onSignGestureEvent(context, name, isOtherUser)
-                                }
-                            }, onAllSigningFinished = { isSuccessful ->
+                            onSigningFinished = { _, _, _ -> }, onAllSigningFinished = { isSuccessful ->
                                 isSigning.value = false
-                                if (isSuccessful) {
-                                    coroutineScope.launch {
-                                        delay(ChaoxingSignHelper.TIMEOUT_SHOW_SPONSOR_AFTER_ALL_SIGNED)
-                                        isSponsor = true
-                                    }
-                                }
+
                             }, destination = destination
                         )
                     }

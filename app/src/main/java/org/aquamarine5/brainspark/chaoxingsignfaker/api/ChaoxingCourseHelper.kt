@@ -10,13 +10,11 @@ import android.content.Context
 import android.widget.Toast
 import com.alibaba.fastjson2.JSONArray
 import com.alibaba.fastjson2.JSONObject
-import io.sentry.Sentry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingCourseEntity
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingParseDataException
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.OnlyAppDevelopedMode
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.checkResponse
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.checkResponseThrowException
@@ -112,13 +110,7 @@ object ChaoxingCourseHelper {
                     )
                 )
             }.getOrElse {
-                Sentry.captureException(
-                    ChaoxingParseDataException(
-                        "课程数据解析失败: ${it.message}",
-                        it,
-                        course.toJSONString()
-                    )
-                )
+                it.printStackTrace()
             }
         }
     }

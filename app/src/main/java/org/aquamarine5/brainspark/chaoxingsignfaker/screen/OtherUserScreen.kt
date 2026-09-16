@@ -131,7 +131,6 @@ import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
-import io.sentry.Sentry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -143,7 +142,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.aquamarine5.brainspark.chaoxingsignfaker.R
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingFaceHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
@@ -163,7 +161,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingImportOtherUs
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingPredictableException
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ImportOtherUserResult
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.UMengHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.displaySnackbar
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.getResultTips
@@ -501,10 +498,7 @@ fun OtherUserScreen(
                                     .show()
                                 when (result.first) {
                                     ChaoxingImportOtherUserResultStatus.SUCCESS -> {
-                                        UMengHelper.onAccountOtherUserAddEvent(
-                                            context,
-                                            result.third
-                                        )
+
                                         otherUserSessions.add(result.third)
                                         userTagList.add(mutableStateOf(emptyList()))
                                     }
@@ -1317,7 +1311,7 @@ fun OtherUserScreen(
                         }.onFailure {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.Reject)
                             if (it !is ChaoxingPredictableException) {
-                                Sentry.captureException(it)
+
                             }
                             errorMessage = "登录失败：" + (it.message ?: "未知错误")
                         }
@@ -1576,22 +1570,11 @@ fun OtherUserScreen(
                     }
                     FilledTonalButton(onClick = {
                         if (inputUrl.isNotBlank()) {
-                            val url =
-                                Regex("""https?://[^\s，。、]+""").find(inputUrl)?.value?.toHttpUrlOrNull()
-                            if (url == null) {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.Reject)
-                                Toast.makeText(context, "链接格式错误", Toast.LENGTH_SHORT).show()
-                                return@FilledTonalButton
-                            }
-                            val phone = url.queryParameter("phone")
-                            val pwd = url.queryParameter("pwd")
-                            val name = url.queryParameter("name")
-                            val faceObjectIds = url.queryParameter("face")
-                                ?.split(',')
-                                ?.filter { it.isNotBlank() }
-                                ?.distinct()
-                                .orEmpty()
-                            if (phone == null || pwd == null || name == null) {
+                            val sharedUser =
+                                Regex("""(?:https?://|cxsignfaker://import)[^\s，。、]+""").find(inputUrl)?.value?.let {
+                                    runCatching { ChaoxingOtherUserSharedEntity.parseFromQRCode(it) }.getOrNull()
+                                }
+                            if (sharedUser == null) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Reject)
                                 Toast.makeText(context, "链接格式错误", Toast.LENGTH_SHORT).show()
                                 return@FilledTonalButton
@@ -1600,12 +1583,7 @@ fun OtherUserScreen(
                                 runCatching {
                                     ChaoxingOtherUserHelper.saveOtherUser(
                                         context,
-                                        ChaoxingOtherUserSharedEntity(
-                                            phone,
-                                            pwd,
-                                            name,
-                                            faceObjectIds,
-                                        )
+                                        sharedUser
                                     )
                                 }.onSuccess { result ->
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1617,10 +1595,7 @@ fun OtherUserScreen(
                                         .show()
                                     when (result.first) {
                                         ChaoxingImportOtherUserResultStatus.SUCCESS -> {
-                                            UMengHelper.onAccountOtherUserAddEvent(
-                                                context,
-                                                result.third
-                                            )
+
                                             otherUserSessions.add(result.third)
                                             userTagList.add(mutableStateOf(emptyList()))
                                         }
@@ -1685,7 +1660,7 @@ fun OtherUserScreen(
                                         importSharedEntity,
                                         if (attachFacePhotos) selectedSharedFaceObjectIds else emptyList(),
                                     )
-                                }，点击链接下载随地大小签或复制文本打开软件即可将此账号添加并为他代签。"
+                                }，使用此版本打开链接，或在代签页面粘贴链接导入账号。"
                             )
                             putExtra(
                                 Intent.EXTRA_TITLE,
@@ -2638,10 +2613,7 @@ fun OtherUserScreen(
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                     when (result.first) {
                                         ChaoxingImportOtherUserResultStatus.SUCCESS -> {
-                                            UMengHelper.onAccountOtherUserAddEvent(
-                                                context,
-                                                result.third
-                                            )
+
                                             otherUserSessions.add(result.third)
                                             userTagList.add(mutableStateOf(emptyList()))
                                         }

@@ -37,7 +37,6 @@ import androidx.compose.ui.zIndex
 import com.baidu.mapapi.model.CoordUtil
 import com.baidu.mapapi.model.LatLng
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -47,7 +46,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingCourseHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingFaceHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClientPool
-import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingSignHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.SignDestination
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CaptchaHandlerDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CaptchaHandlerParams
@@ -63,7 +61,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.components.SaveFaceImagesDia
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SaveFavoriteLocationDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SignOutRedirectTips
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SignPotentialWarningTips
-import org.aquamarine5.brainspark.chaoxingsignfaker.components.SponsorPopupDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.cloneSessionGuard
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.toChaoxingLocation
 import org.aquamarine5.brainspark.chaoxingsignfaker.datastore.ChaoxingOtherUserSession
@@ -79,7 +76,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.signer.ChaoxingSignHandler
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingPredictableException
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.FaceRecognitionImageStatus
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.UMengHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.rememberFaceRecognitionData
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.snackbarReport
@@ -137,10 +133,7 @@ fun LocationSignScreen(
             destination
         )
     }
-    var isSponsor by remember { mutableStateOf(false) }
-    if (isSponsor) {
-        SponsorPopupDialog()
-    }
+
     var captchaValidateParams by remember {
         mutableStateOf<CaptchaHandlerParams<ChaoxingLocationSigner>>(
             null
@@ -266,7 +259,6 @@ fun LocationSignScreen(
                     val userSelections = remember { mutableStateListOf(isSignForOther.not()) }
                     var isFaceImageCaptured by remember { mutableStateOf(false) }
                     var showFaceSaveDialog by remember { mutableStateOf(false) }
-                    var sponsorPendingAfterFaceSave by remember { mutableStateOf(false) }
                     var signedLocation by remember { mutableStateOf<ChaoxingLocationSignEntity?>(null) }
                     var isShowSaveFavoriteDialog by remember { mutableStateOf(false) }
                     if (isShowSaveFavoriteDialog) {
@@ -284,13 +276,7 @@ fun LocationSignScreen(
                             faceRecognitionData,
                             otherUserSessionForSignList
                         ) {
-                            if (sponsorPendingAfterFaceSave) {
-                                coroutineScope.launch {
-                                    delay(ChaoxingSignHelper.TIMEOUT_SHOW_SPONSOR_AFTER_ALL_SIGNED)
-                                    isSponsor = true
-                                    sponsorPendingAfterFaceSave = false
-                                }
-                            }
+
                             showFaceSaveDialog = false
                         }
                     }
@@ -416,14 +402,7 @@ fun LocationSignScreen(
                             },
                             destination = destination,
                             onSigningFinished = { value, name, isOtherUser ->
-                                coroutineScope.launch {
-                                    UMengHelper.onSignLocationEvent(
-                                        context,
-                                        value,
-                                        name,
-                                        isOtherUser
-                                    )
-                                }
+
                                 coroutineScope.launch(Dispatchers.IO) {
                                     context.chaoxingDataStore.updateData {
                                         it.toBuilder().setPreferences(
@@ -463,13 +442,7 @@ fun LocationSignScreen(
                                         }
                                     }
                                     if (faceRecognitionData.newImagePhones.isNotEmpty()) {
-                                        sponsorPendingAfterFaceSave = true
                                         showFaceSaveDialog = true
-                                    } else {
-                                        coroutineScope.launch {
-                                            delay(ChaoxingSignHelper.TIMEOUT_SHOW_SPONSOR_AFTER_ALL_SIGNED)
-                                            isSponsor = true
-                                        }
                                     }
                                 }
                             },

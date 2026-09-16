@@ -7,12 +7,10 @@
 package org.aquamarine5.brainspark.chaoxingsignfaker.api
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableStateOf
 import com.alibaba.fastjson2.JSONObject
-import io.sentry.Sentry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -35,7 +33,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingEasemobIMConf
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingOtherUserSharedEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingUserEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingParseDataException
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.UMengHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.checkResponseThrowException
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.displaySnackbar
@@ -237,9 +234,7 @@ class ChaoxingHttpClient private constructor(
                 }
                 .build()
             login(client, phoneNumber, password, context)
-            val userInfo = getInfo(client, context, phoneNumber).apply {
-                UMengHelper.profileSignIn(this, phoneNumber)
-            }
+            val userInfo = getInfo(client, context, phoneNumber)
             return@withContext ChaoxingHttpClient(
                 client,
                 userInfo
@@ -353,8 +348,7 @@ class ChaoxingHttpClient private constructor(
                                             Toast.LENGTH_LONG
                                         ).show()
                                     }
-                                    if (it !is PackageManager.NameNotFoundException)
-                                        Sentry.captureException(it)
+
                                     get()
                                 }
                             }

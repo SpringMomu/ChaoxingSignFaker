@@ -32,10 +32,8 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingParseDataE
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.OnlyAppDevelopedMode
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.checkResponseThrowException
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.Duration.Companion.milliseconds
 
 object ChaoxingSignHelper {
-    val TIMEOUT_SHOW_SPONSOR_AFTER_ALL_SIGNED = 250.milliseconds
     private val signIconMap = mapOf(
         "0" to R.drawable.ic_square_mouse_pointer,
         "3" to R.drawable.ic_pattern_locking,
@@ -111,7 +109,6 @@ object ChaoxingSignHelper {
 
             else -> throw ChaoxingUnsupportedSignTypeException()
         }
-
 
     fun getSignDestination(
         context: Context,

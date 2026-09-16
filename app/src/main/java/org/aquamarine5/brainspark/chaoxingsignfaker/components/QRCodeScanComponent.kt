@@ -6,24 +6,15 @@
 
 package org.aquamarine5.brainspark.chaoxingsignfaker.components
 
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.ColorFilter
-import android.graphics.Paint
-import android.graphics.PixelFormat
-import android.graphics.Rect
-import android.graphics.RectF
-import android.graphics.drawable.Drawable
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.mlkit.vision.MlKitAnalyzer
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -52,9 +43,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -71,13 +62,11 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
 import org.aquamarine5.brainspark.chaoxingsignfaker.R
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
@@ -90,10 +79,11 @@ fun QRCodeScanComponent(
     isPause: MutableState<Boolean>,
     isLoading: MutableState<Boolean>,
     onClose: () -> Unit,
-    onScanResult: (Barcode) -> Unit,
+    onScanResult: (String) -> Unit,
     content: @Composable BoxScope.() -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val scanResultCallback = rememberUpdatedState(onScanResult)
     val cameraPermission = rememberPermissionState(android.Manifest.permission.CAMERA)
     val hapticFeedback = LocalHapticFeedback.current
     val snackbarHostState = LocalSnackbarHostState.current
@@ -119,95 +109,77 @@ fun QRCodeScanComponent(
                     cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                 }
             }
-            val barcodeScanner = remember {
-                BarcodeScanning.getClient(
-                    BarcodeScannerOptions.Builder().setBarcodeFormats(
-                        Barcode.FORMAT_QR_CODE
-                    )
-//                        .setZoomSuggestionOptions(ZoomSuggestionOptions.Builder { ratio ->
-//                        controller.setZoomRatio(ratio)
-//                        return@Builder true
-//                    }
-//                        .build())
-                        .build()
-                )
-            }
-            val qrCodeDrawable = remember { QRCodeDrawable() }
-            val qrCodeOverlayAdded = remember { mutableStateOf(false) }
             val photoPickerLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.PickVisualMedia()
             ) { uri: Uri? ->
                 if (uri != null) {
-                    runCatching {
-                        barcodeScanner.process(InputImage.fromFilePath(context, uri))
-                            .addOnSuccessListener { barcodes ->
-                                if (barcodes.isNotEmpty()) {
-                                    onScanResult(barcodes[0])
-                                } else {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.Reject)
-                                    snackbarHostState.displaySnackbar(
-                                        "未能识别出二维码",
-                                        coroutineScope
-                                    )
+                    coroutineScope.launch {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                context.contentResolver.openInputStream(uri).use { stream ->
+                                    val bitmap = requireNotNull(BitmapFactory.decodeStream(stream))
+                                    try {
+                                        val pixels = IntArray(bitmap.width * bitmap.height)
+                                        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                                        LocalQRCodeDecoder.decodePixels(bitmap.width, bitmap.height, pixels)
+                                    } finally {
+                                        bitmap.recycle()
+                                    }
                                 }
                             }
-                            .addOnFailureListener {
-                                it.snackbarReport(
-                                    snackbarHostState,
-                                    coroutineScope,
-                                    "无法处理选中的图片",
-                                    hapticFeedback
-                                )
+                        }.onSuccess { result ->
+                            if (result != null) {
+                                scanResultCallback.value(result)
+                            } else {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.Reject)
+                                snackbarHostState.displaySnackbar("未能识别出二维码", coroutineScope)
                             }
-                    }.onFailure {
-                        it.snackbarReport(
-                            snackbarHostState,
-                            coroutineScope,
-                            "无法处理选中的图片",
-                            hapticFeedback
-                        )
+                        }.onFailure {
+                            it.snackbarReport(snackbarHostState, coroutineScope, "无法处理选中的图片", hapticFeedback)
+                        }
                     }
                 }
             }
             DisposableEffect(lifecycleOwner) {
+                val analysisExecutor = Executors.newSingleThreadExecutor()
+                var disposed = false
                 cameraProviderFuture.addListener({
+                    if (disposed) return@addListener
                     val cameraProvider = cameraProviderFuture.get()
                     cameraProvider.unbindAll()
 
-                    controller.setImageAnalysisAnalyzer(
-                        cameraExecutor, MlKitAnalyzer(
-                            listOf(barcodeScanner),
-                            ImageAnalysis.COORDINATE_SYSTEM_VIEW_REFERENCED,
-                            cameraExecutor,
-                        ) {
-                            it?.let { result ->
-                                val barcodeResult = result.getValue(barcodeScanner)
-                                if (barcodeResult.isNullOrEmpty()) {
-                                    if (qrCodeOverlayAdded.value) {
-                                        previewView.overlay.clear()
-                                        qrCodeOverlayAdded.value = false
-                                    }
-                                    return@MlKitAnalyzer
-                                }
-                                val barcode = barcodeResult[0]
-                                qrCodeDrawable.updateBoundingBox(barcode.boundingBox)
-                                if (!qrCodeOverlayAdded.value) {
-                                    previewView.overlay.add(qrCodeDrawable)
-                                    qrCodeOverlayAdded.value = true
-                                }
-                                if (!isPause.value) {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
-                                    onScanResult(barcode)
+                    controller.setImageAnalysisAnalyzer(analysisExecutor) { image ->
+                        try {
+                            val plane = image.planes[0]
+                            val buffer = plane.buffer.duplicate()
+                            val offset = buffer.position()
+                            val luminance = ByteArray(image.width * image.height)
+                            for (y in 0 until image.height) {
+                                for (x in 0 until image.width) {
+                                    luminance[y * image.width + x] = buffer.get(offset + y * plane.rowStride + x * plane.pixelStride)
                                 }
                             }
-                        })
+                            val result = LocalQRCodeDecoder.decodeLuminance(image.width, image.height, luminance)
+                            if (result != null) {
+                                cameraExecutor.execute {
+                                    if (!disposed && !isPause.value && !isLoading.value) {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
+                                        scanResultCallback.value(result)
+                                    }
+                                }
+                            }
+                        } finally {
+                            image.close()
+                        }
+                    }
 
                     controller.bindToLifecycle(lifecycleOwner)
                 }, cameraExecutor)
                 onDispose {
-                    barcodeScanner.close()
+                    disposed = true
                     controller.clearImageAnalysisAnalyzer()
                     controller.unbind()
+                    analysisExecutor.shutdown()
                 }
             }
             Box(
@@ -337,40 +309,4 @@ fun QRCodeScanComponent(
             }
         }
     }
-}
-
-class QRCodeDrawable : Drawable() {
-    private val paint = Paint().apply {
-        color = Color.RED
-        style = Paint.Style.STROKE
-        strokeWidth = 8f
-    }
-
-    private var boundingBox: Rect? = null
-
-    fun updateBoundingBox(boundingBox: Rect?) {
-        this.boundingBox = boundingBox
-        invalidateSelf()
-    }
-
-    override fun draw(canvas: Canvas) {
-        boundingBox?.let {
-            val rectF = RectF(it)
-            canvas.drawRoundRect(rectF, 16F, 16F, paint)
-        }
-    }
-
-    override fun setAlpha(alpha: Int) {
-        paint.alpha = alpha
-    }
-
-    override fun setColorFilter(colorFilter: ColorFilter?) {
-        paint.colorFilter = colorFilter
-    }
-
-    @Deprecated(
-        "Deprecated in Java",
-        ReplaceWith("PixelFormat.TRANSLUCENT", "android.graphics.PixelFormat")
-    )
-    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
 }

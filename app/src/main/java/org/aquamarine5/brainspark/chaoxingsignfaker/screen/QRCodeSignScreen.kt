@@ -63,7 +63,6 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import io.sentry.Sentry
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -79,7 +78,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingFaceHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClientPool
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingSignResult
-import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingSignHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.SignDestination
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CaptchaHandlerDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CaptchaHandlerParams
@@ -95,7 +93,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.components.QRCodeScanCompone
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SaveFaceImagesDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SignOutRedirectTips
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SignPotentialWarningTips
-import org.aquamarine5.brainspark.chaoxingsignfaker.components.SponsorPopupDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.datastore.ChaoxingOtherUserSession
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingLocationSignEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingSignActivityEntity
@@ -107,7 +104,6 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.signer.ChaoxingSignHandler
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingPredictableException
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.FaceRecognitionImageStatus
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.UMengHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.displaySnackbar
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.isDevelopedMode
@@ -294,25 +290,14 @@ fun QRCodeSignScreen(
                     val signStatus =
                         remember { mutableStateListOf(ChaoxingSignStatus(hapticFeedback)) }
 
-                    var isSponsor by remember { mutableStateOf(false) }
-                    if (isSponsor) {
-                        SponsorPopupDialog()
-                    }
                     var isFaceImageCaptured by remember { mutableStateOf(false) }
                     var showFaceSaveDialog by remember { mutableStateOf(false) }
-                    var sponsorPendingAfterFaceSave by remember { mutableStateOf(false) }
                     if (showFaceSaveDialog) {
                         SaveFaceImagesDialog(
                             faceRecognitionData,
                             signUserList
                         ) {
-                            if (sponsorPendingAfterFaceSave) {
-                                coroutineScope.launch {
-                                    delay(ChaoxingSignHelper.TIMEOUT_SHOW_SPONSOR_AFTER_ALL_SIGNED)
-                                    isSponsor = true
-                                    sponsorPendingAfterFaceSave = false
-                                }
-                            }
+
                             showFaceSaveDialog = false
                         }
                     }
@@ -381,15 +366,7 @@ fun QRCodeSignScreen(
                                     )
                                 }
                             },
-                            onSigningFinished = { _, name, isOtherUser ->
-                                coroutineScope.launch {
-                                    UMengHelper.onSignQRCodeEvent(
-                                        context,
-                                        name,
-                                        isOtherUser
-                                    )
-                                }
-                            },
+                            onSigningFinished = { _, _, _ -> },
                             onOtherUserSigning = { value, session, bypassChecking, index ->
                                 runCatching {
                                     ChaoxingHttpClientPool.get(context, session.phoneNumber)
@@ -464,11 +441,7 @@ fun QRCodeSignScreen(
                                 isSigning.value = false
                                 if (isSuccessful) {
                                     if (faceRecognitionData.newImagePhones.isNotEmpty()) {
-                                        sponsorPendingAfterFaceSave = true
                                         showFaceSaveDialog = true
-                                    } else coroutineScope.launch {
-                                        delay(ChaoxingSignHelper.TIMEOUT_SHOW_SPONSOR_AFTER_ALL_SIGNED)
-                                        isSponsor = true
                                     }
                                 }
                             },
@@ -823,9 +796,7 @@ fun QRCodeSignScreen(
                                     }.onFailure {
                                         it.printStackTrace()
                                         (it as? ChaoxingQRCodeSigner.QRCodeParseException).let { exception ->
-                                            if (exception == null)
-                                                Sentry.captureException(it)
-                                            else {
+                                            if (exception != null) {
                                                 if (isDevelopedMode)
                                                     snackbarHost.displaySnackbar(
                                                         exception.rawValue,

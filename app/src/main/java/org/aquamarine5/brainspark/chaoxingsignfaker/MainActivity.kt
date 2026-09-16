@@ -7,11 +7,7 @@
 package org.aquamarine5.brainspark.chaoxingsignfaker
 
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
-import android.os.Debug
-import android.os.Process
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -28,7 +24,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,8 +37,6 @@ import androidx.compose.material.BottomNavigationItem
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -84,12 +77,8 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.baidu.location.LocationClient
 import com.baidu.mapapi.SDKInitializer
-import com.umeng.analytics.MobclickAgent
-import io.sentry.Sentry
-import io.sentry.android.core.SentryAndroid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingFaceHelper
@@ -134,25 +123,11 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.screen.WelcomeDestination
 import org.aquamarine5.brainspark.chaoxingsignfaker.screen.WelcomeScreen
 import org.aquamarine5.brainspark.chaoxingsignfaker.screen.isAlwaysForceSign
 import org.aquamarine5.brainspark.chaoxingsignfaker.ui.theme.ChaoxingSignFakerTheme
-import org.aquamarine5.brainspark.chaoxingsignfaker.ui.theme.Orange
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingAnalyser
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingParseDataException
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingPredictableException
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalImageLoader
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
-import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.UMengHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.isDevelopedMode
-import org.aquamarine5.brainspark.stackbricks.StackbricksPolicy
-import org.aquamarine5.brainspark.stackbricks.StackbricksService
-import org.aquamarine5.brainspark.stackbricks.providers.qiniu.QiniuConfiguration
-import org.aquamarine5.brainspark.stackbricks.providers.qiniu.QiniuMessageProvider
-import org.aquamarine5.brainspark.stackbricks.providers.qiniu.QiniuPackageProvider
-import org.aquamarine5.brainspark.stackbricks.rememberStackbricksStatus
-import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
 import kotlin.reflect.typeOf
-import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -161,63 +136,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        @Suppress("DEPRECATION")
-        val versionData = packageManager.getPackageInfo(
-            packageName,
-            (PackageManager.GET_META_DATA or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES))
-        )
-        val verifiedSignature = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            versionData.signingInfo?.apkContentsSigners
-        } else {
-            @Suppress("DEPRECATION")
-            versionData.signatures
-        }?.joinToString {
-            MessageDigest.getInstance("SHA-256").digest(it.toByteArray())
-                .joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
-        }
-        SentryAndroid.init(this) {
-            if (Debug.isDebuggerConnected()) {
-                it.isEnabled = false
-            }
-
-            val versionName = versionData.versionName!!
-            if (versionName.contains("rc"))
-                it.environment = "rc"
-            else if (versionName.contains("beta"))
-                it.environment = "beta"
-            else if (versionName.contains("alpha")) {
-                it.environment = "alpha"
-                it.isAnrEnabled = false
-            } else
-                it.environment = "stable"
-            val ignoreExceptions = listOf(
-                "ForgottenCoroutineScopeException",
-                "LeftCompositionCancellationException",
-                "SocketTimeoutException",
-                "UnknownHostException",
-                "ConnectException",
-                "SSLHandshakeException"
-            )
-            it.beforeSend = { event, _ ->
-                event.setExtra("sign", verifiedSignature)
-                if (ignoreExceptions.contains(event.throwable?.javaClass?.simpleName)) {
-                    null
-                } else {
-                    (event.throwable as? ChaoxingParseDataException)?.let {
-                        event.setExtra("data", it.data ?: "null")
-                    }
-                    event
-                }
-            }
-        }
-        UMengHelper.preInit(this)
         enableEdgeToEdge()
         setContent {
             val hapticFeedback = LocalHapticFeedback.current
             val navController = rememberNavController()
-            var isNewVersionAvailable by remember {
-                mutableStateOf(false)
-            }
+
             var destination by remember { mutableStateOf<Any?>(null) }
             val snackbarHostState = remember { SnackbarHostState() }
             ChaoxingSignFakerTheme {
@@ -295,7 +218,7 @@ class MainActivity : ComponentActivity() {
                                                             }
                                                         }
                                                     }.onFailure {
-                                                        Sentry.captureException(it)
+
                                                         it.printStackTrace()
                                                     }
                                                 }
@@ -311,31 +234,13 @@ class MainActivity : ComponentActivity() {
 
                                                 Column {
                                                     Spacer(modifier = Modifier.size(1.5.dp))
-                                                    BadgedBox(badge = {
-                                                        if (item.name == "设置" && isNewVersionAvailable) {
-                                                            Box(contentAlignment = Alignment.Center) {
-                                                                Badge(
-                                                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                                                    modifier = Modifier
-                                                                        .size(16.dp)
-                                                                        .zIndex(0f)
-                                                                )
-                                                                Badge(
-                                                                    containerColor = Orange,
-                                                                    modifier = Modifier
-                                                                        .size(10.dp)
-                                                                        .zIndex(10f)
-                                                                )
-                                                            }
-                                                        }
-                                                    }) {
+
                                                         Icon(
                                                             painterResource(item.iconRes),
                                                             contentDescription = item.name,
                                                             modifier = Modifier.size(26.dp),
                                                             tint = iconColor
                                                         )
-                                                    }
 
                                                 }
                                             },
@@ -356,38 +261,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     ) { innerPadding ->
-                        val stackbricksService = remember {
-                            QiniuConfiguration(
-                                possibleConfigurations = listOf(
-                                    "cdn.aquamarine5.fun" to "chaoxingsignfaker_stackbricks_manifest.json",
-                                    "cdn.aquamarine5.fun" to "chaoxingsignfaker_stackbricks_v2_manifest.json",
-                                    "cdn.aquamarine5.top" to "chaoxingsignfaker_stackbricks_manifest.json",
-                                    "cdn.aquamarine5.vip" to "chaoxingsignfaker_stackbricks_manifest.json",
-                                ),
-                                referer = "http://cdn.aquamarine5.fun/",
-                                okHttpClient = OkHttpClient.Builder()
-                                    .callTimeout(20, TimeUnit.MINUTES)
-                                    .readTimeout(20, TimeUnit.MINUTES)
-                                    .writeTimeout(20, TimeUnit.MINUTES)
-                                    .retryOnConnectionFailure(true)
-                                    .build()
-                            )
-                        }.let {
-                            val state = rememberStackbricksStatus()
-                            remember {
-                                StackbricksService(
-                                    this,
-                                    QiniuMessageProvider(it),
-                                    QiniuPackageProvider(it),
-                                    state,
-                                    stackbricksPolicy = StackbricksPolicy(
-                                        versionName = BuildConfig.VERSION_NAME,
-                                        isAllowedToDisableCheckUpdateOnLaunch = false,
-                                        isForceInstallValueCallback = false,
-                                    ),
-                                )
-                            }
-                        }
                         Column(
                             modifier = Modifier
                                 .background(MaterialTheme.colorScheme.background)
@@ -420,7 +293,7 @@ class MainActivity : ComponentActivity() {
                                             datastore.faceRecognitionConfiguresMap.mapValues { it.value.imagesList }
                                         )
                                         if (datastore.agreeTerms) {
-                                            UMengHelper.init(applicationContext)
+
                                             LocationClient.setAgreePrivacy(true)
                                             SDKInitializer.setAgreePrivacy(applicationContext, true)
                                         }
@@ -441,37 +314,6 @@ class MainActivity : ComponentActivity() {
                                                             applicationContext
                                                         )
                                                         return@runCatching SignGraphDestination
-                                                    }.onSuccess {
-                                                        launch {
-                                                            runCatching {
-                                                                ChaoxingAnalyser.setupStateAnalyser(
-                                                                    datastore
-                                                                )
-                                                                ChaoxingAnalyser.checkAndUploadAnalyserRankData(
-                                                                    applicationContext
-                                                                )
-                                                            }
-                                                        }
-                                                        launch {
-                                                            if (UMengHelper.md5(
-                                                                    packageManager.getApplicationLabel(
-                                                                        versionData.applicationInfo!!
-                                                                    ).toString()
-                                                                ) != "181b23fb3bfa29181fcde41f72757e97" && UMengHelper.md5(
-                                                                    packageName
-                                                                ) != "717670698be98532464cfc122894908b"
-                                                            ) {
-                                                                UMengHelper.onIllegalChannelEvent(
-                                                                    this@MainActivity,
-                                                                    versionData
-                                                                )
-                                                                MobclickAgent.onKillProcess(this@MainActivity)
-                                                                Process.killProcess(Process.myPid())
-                                                                exitProcess(0)
-                                                                @Suppress("KotlinUnreachableCode")
-                                                                throw ChaoxingPredictableException.ApplicationIllegalChannelException()
-                                                            }
-                                                        }
                                                     }.getOrElse {
                                                         it.printStackTrace()
                                                         withContext(Dispatchers.Main) {
@@ -563,13 +405,10 @@ class MainActivity : ComponentActivity() {
                                                 composable<CourseListDestination> { entry ->
                                                     CourseListScreen(
                                                         entry.toRoute(),
-                                                        stackbricksService,
                                                         navToDetailDestination = {
                                                             navController.navigate(it)
                                                         },
-                                                        onNewVersionAvailable = {
-                                                            isNewVersionAvailable = true
-                                                        },
+
                                                         navToSignActivityDestination = {
                                                             navController.navigate(it)
                                                         },
@@ -746,7 +585,6 @@ class MainActivity : ComponentActivity() {
                                             navigation<SettingGraphDestination>(startDestination = SettingDestination) {
                                                 composable<SettingDestination> {
                                                     SettingScreen(
-                                                        stackbricksService,
                                                         naviToLoginScreen = {
                                                             navController.navigate(LoginDestination()) {
                                                                 popUpTo<SettingDestination> {
@@ -768,7 +606,6 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             }
 
-
                                             composable<WelcomeDestination> {
                                                 WelcomeScreen {
                                                     navController.navigate(LoginDestination()) {
@@ -780,7 +617,7 @@ class MainActivity : ComponentActivity() {
                                             }
 
                                             composable<LoginDestination> {
-                                                LoginPage(it.toRoute(), stackbricksService) {
+                                                LoginPage(it.toRoute()) {
                                                     navController.navigate(CourseListDestination()) {
                                                         popUpTo<LoginDestination> {
                                                             inclusive = true
@@ -854,23 +691,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
     }
 
-    override fun onResume() {
-        MobclickAgent.onResume(this)
-        super.onResume()
-    }
 
-    override fun onPause() {
-        MobclickAgent.onPause(this)
-        super.onPause()
-    }
 
-    override fun onStop() {
-        MobclickAgent.onKillProcess(this)
-        super.onStop()
-    }
 
-    override fun onDestroy() {
-        MobclickAgent.onKillProcess(this)
-        super.onDestroy()
-    }
 }

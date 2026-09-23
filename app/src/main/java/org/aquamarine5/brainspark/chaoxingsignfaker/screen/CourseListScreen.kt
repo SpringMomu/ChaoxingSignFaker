@@ -21,14 +21,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,8 +78,8 @@ import kotlinx.serialization.Serializable
 import org.aquamarine5.brainspark.chaoxingsignfaker.R
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingCourseHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
+import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingLessonHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingRecommendHelper
-import org.aquamarine5.brainspark.chaoxingsignfaker.api.SignDestination
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CenterCircularProgressIndicator
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CourseInfoColumnCard
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.NetworkExceptionComponent
@@ -84,6 +87,7 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.components.NewFeatureTipsCar
 import org.aquamarine5.brainspark.chaoxingsignfaker.datastore.ChaoxingCourseClass
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingCourseEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.RecommendActivityEntity
+import org.aquamarine5.brainspark.chaoxingsignfaker.entity.SignDestination
 import org.aquamarine5.brainspark.chaoxingsignfaker.ui.theme.FontGilroy
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalImageLoader
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
@@ -92,7 +96,8 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.disableCode
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.disableComposableCode
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.snackbarReport
 import java.time.Instant
-import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.milliseconds
 
 @Serializable
@@ -118,6 +123,9 @@ fun CourseListScreen(
     navToGroupDestination: (isCloneSession: Boolean) -> Unit,
 ) {
     val imageLoader = LocalImageLoader.current
+    val activeClient = ChaoxingHttpClient.getClientInstanceOrClone(destination.isCloneSession)
+    val courseCacheKey = "${activeClient?.userEntity?.phoneNumber}:${activeClient?.configuredFid}"
+    var savedCourseCacheKey by rememberSaveable { mutableStateOf(courseCacheKey) }
     val activitiesData =
         rememberSaveable(saver = ChaoxingCourseEntity.Saver) { mutableStateListOf() }
     val preferredClassIds = rememberSaveable {
@@ -127,15 +135,39 @@ fun CourseListScreen(
     val context = LocalContext.current
     val snackbarHost = LocalSnackbarHostState.current
     var recommendActivities by remember { mutableStateOf<List<RecommendActivityEntity>?>(null) }
+    var lessonSignActivities by remember { mutableStateOf<List<RecommendActivityEntity>?>(null) }
     var isFetchedFailure by remember { mutableStateOf<Result<*>?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    val activityTimeFormatter = remember {
+        DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
+    }
     val isCaptchaAutoResolveLearntTooltip = rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(courseCacheKey) {
+        if (savedCourseCacheKey != courseCacheKey) {
+            activitiesData.clear()
+            preferredClassIds.clear()
+            lessonSignActivities = null
+            recommendActivities = null
+            isFetchedFailure = null
+            savedCourseCacheKey = courseCacheKey
+        }
         withContext(Dispatchers.IO) {
             disableCode {
                 recommendActivities =
                     ChaoxingRecommendHelper.checkRecommendedActivities(context)
             } //TODO: recommend
+            launch {
+                runCatching {
+                    val schedule = context.chaoxingDataStore.data.first().classSchedule
+                    if (schedule.lastFetchTimestamp +
+                        ChaoxingLessonHelper.LESSONS_CACHE_INTERVAL <
+                        System.currentTimeMillis() || schedule.lessonsList.isEmpty()
+                    ) {
+                        ChaoxingHttpClient.getClientInstanceOrClone(destination.isCloneSession)
+                            ?.let { ChaoxingLessonHelper.refreshLessons(it, context) }
+                    }
+                }
+            }
             if (activitiesData.isEmpty()) {
                 isFetchedFailure = runCatching {
                     val datastoreData = context.chaoxingDataStore.data.first()
@@ -170,7 +202,7 @@ fun CourseListScreen(
                     preferredClassIds.addAll(
                         datastoreData.preferClassIdList.reversed()
                     )
-                    ChaoxingHttpClient.getHttpInstanceOrClone(destination.isCloneSession)
+                    ChaoxingHttpClient.getClientInstanceOrClone(destination.isCloneSession)
                         ?.let { httpClient ->
                             ChaoxingCourseHelper.getAllCourse(
                                 httpClient,
@@ -185,6 +217,13 @@ fun CourseListScreen(
                                         !preferredClassIds.contains(it.classId)
                                     })
                                 }
+                        }
+                    ChaoxingHttpClient.getClientInstanceOrClone(destination.isCloneSession)
+                        ?.let {
+                            lessonSignActivities =
+                                ChaoxingLessonHelper.checkCurrentLessonSignActivities(
+                                    it, context, activitiesData.toList()
+                                )
                         }
                 }.onFailure {
                     it.snackbarReport(
@@ -211,7 +250,7 @@ fun CourseListScreen(
                             pullToRefreshState = true
                             coroutineScope.launch(Dispatchers.IO) {
                                 isFetchedFailure = runCatching {
-                                    ChaoxingHttpClient.getHttpInstanceOrClone(destination.isCloneSession)
+                                    ChaoxingHttpClient.getClientInstanceOrClone(destination.isCloneSession)
                                         ?.let { httpClient ->
                                             ChaoxingCourseHelper.getAllCourse(
                                                 httpClient,
@@ -232,6 +271,13 @@ fun CourseListScreen(
                                                     activitiesData.clear()
                                                     activitiesData.addAll(newActivities)
                                                 }
+                                        }
+                                    ChaoxingHttpClient.getClientInstanceOrClone(destination.isCloneSession)
+                                        ?.let {
+                                            lessonSignActivities =
+                                                ChaoxingLessonHelper.checkCurrentLessonSignActivities(
+                                                    it, context, activitiesData.toList()
+                                                )
                                         }
                                 }.onFailure {
                                     it.snackbarReport(
@@ -259,7 +305,18 @@ fun CourseListScreen(
                                                 hapticFeedback.performHapticFeedback(
                                                     HapticFeedbackType.ContextClick
                                                 )
-                                                navToSignActivityDestination(item.destination)
+                                                coroutineScope.launch {
+                                                    runCatching { item.destination.await() }
+                                                        .onSuccess { navToSignActivityDestination(it) }
+                                                        .onFailure {
+                                                            it.snackbarReport(
+                                                                snackbarHost,
+                                                                coroutineScope,
+                                                                "获取签到活动信息失败",
+                                                                hapticFeedback
+                                                            )
+                                                        }
+                                                }
                                             },
                                             shape = RoundedCornerShape(18.dp),
                                             modifier = Modifier.fillMaxWidth()
@@ -287,13 +344,12 @@ fun CourseListScreen(
                                                             )
                                                         ) {
                                                             append(
-                                                                LocalDateTime.from(
+                                                                activityTimeFormatter.format(
                                                                     Instant.ofEpochMilli(
                                                                         item.startTime
                                                                     )
-                                                                ).run {
-                                                                    "$hour:$minute:$second"
-                                                                })
+                                                                )
+                                                            )
                                                         }
                                                         append(" 的 ")
                                                         append(item.activityName)
@@ -339,7 +395,8 @@ fun CourseListScreen(
                                         ) {
                                             Icon(
                                                 painterResource(R.drawable.ic_circle_question_mark),
-                                                null
+                                                null,
+                                                modifier = Modifier.size(36.dp).padding(2.dp)
                                             )
                                             Column(
                                                 modifier = Modifier.padding(
@@ -390,6 +447,125 @@ fun CourseListScreen(
                                         }
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
+                                }
+                                item {
+                                    AnimatedVisibility(
+                                        lessonSignActivities?.isNotEmpty() == true,
+                                        enter = fadeIn() + slideInVertically(),
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    ) {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                lessonSignActivities?.forEach { item ->
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(16.dp, 8.dp)
+                                                    ) {
+                                                        Icon(
+                                                            painterResource(R.drawable.ic_lightbulb),
+                                                            null,
+                                                            modifier = Modifier.size(36.dp).padding(2.dp)
+                                                        )
+                                                        Column(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .padding(start = 12.dp)
+                                                        ) {
+                                                            Text(
+                                                                "根据当前课表推断的签到事件：",
+                                                                fontSize = 14.sp,
+                                                                lineHeight = 17.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                            Text(buildAnnotatedString {
+                                                                withStyle(
+                                                                    SpanStyle(
+                                                                        fontWeight = FontWeight.Bold,
+                                                                        color = MaterialTheme.colorScheme.primary
+                                                                    )
+                                                                ) {
+                                                                    append(item.className)
+                                                                }
+                                                                append(" 在 ")
+                                                                withStyle(
+                                                                    SpanStyle(
+                                                                        fontFamily = FontGilroy
+                                                                    )
+                                                                ) {
+                                                                    append(
+                                                                        activityTimeFormatter.format(
+                                                                            Instant.ofEpochMilli(
+                                                                                item.startTime
+                                                                            )
+                                                                        )
+                                                                    )
+                                                                }
+                                                                append(" 的 ")
+                                                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                                                                    append(item.activityName)
+                                                                }
+                                                            },
+                                                                fontSize = 14.sp,
+                                                                lineHeight = 17.sp,
+                                                                style = TextStyle.Default.copy(
+                                                                    lineBreak = LineBreak(
+                                                                        strategy = LineBreak.Strategy.HighQuality,
+                                                                        strictness = LineBreak.Strictness.Strict,
+                                                                        wordBreak = LineBreak.WordBreak.Default
+                                                                    )
+                                                                )
+                                                            )
+                                                            Button(
+                                                                onClick = {
+                                                                    hapticFeedback.performHapticFeedback(
+                                                                        HapticFeedbackType.ContextClick
+                                                                    )
+                                                                    coroutineScope.launch {
+                                                                        runCatching { item.destination.await() }
+                                                                            .onSuccess {
+                                                                                navToSignActivityDestination(
+                                                                                    it
+                                                                                )
+                                                                            }
+                                                                            .onFailure {
+                                                                                it.snackbarReport(
+                                                                                    snackbarHost,
+                                                                                    coroutineScope,
+                                                                                    "获取签到活动信息失败",
+                                                                                    hapticFeedback
+                                                                                )
+                                                                            }
+                                                                    }
+                                                                },
+                                                                shape = RoundedCornerShape(18.dp),
+                                                                modifier = Modifier.fillMaxWidth()
+                                                            ) {
+                                                                Row(
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.Center,
+                                                                    modifier = Modifier.fillMaxWidth()
+                                                                ) {
+                                                                    Icon(
+                                                                        painter = painterResource(R.drawable.ic_clipboard_pen_line),
+                                                                        null,
+                                                                        modifier = Modifier.size(18.dp)
+                                                                    )
+                                                                    Spacer(modifier = Modifier.width(10.dp))
+                                                                    Text("前往签到")
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                                 item {
                                     NewFeatureTipsCard(
@@ -499,9 +675,11 @@ fun CourseListScreen(
                                                 visibilityThreshold = IntOffset.VisibilityThreshold
                                             ),
                                             fadeInSpec = spring(
-                                                stiffness = Spring.StiffnessMedium),
+                                                stiffness = Spring.StiffnessMedium
+                                            ),
                                             fadeOutSpec = spring(
-                                                stiffness = Spring.StiffnessMedium)
+                                                stiffness = Spring.StiffnessMedium
+                                            )
                                         )
                                     ) {
                                         CourseInfoColumnCard(
@@ -571,7 +749,7 @@ fun CourseListScreen(
                     NetworkExceptionComponent(v.exceptionOrNull()!!) {
                         coroutineScope.launch {
                             isFetchedFailure = runCatching {
-                                ChaoxingHttpClient.getHttpInstanceOrClone(destination.isCloneSession)
+                                ChaoxingHttpClient.getClientInstanceOrClone(destination.isCloneSession)
                                     ?.let { httpClient ->
                                         ChaoxingCourseHelper.getAllCourse(
                                             httpClient,
@@ -590,6 +768,13 @@ fun CourseListScreen(
                                                     !preferredClassIds.contains(it.classId)
                                                 })
                                             }
+                                    }
+                                ChaoxingHttpClient.getClientInstanceOrClone(destination.isCloneSession)
+                                    ?.let {
+                                        lessonSignActivities =
+                                            ChaoxingLessonHelper.checkCurrentLessonSignActivities(
+                                                it, context, activitiesData.toList()
+                                            )
                                     }
                             }.onFailure {
                                 it.snackbarReport(

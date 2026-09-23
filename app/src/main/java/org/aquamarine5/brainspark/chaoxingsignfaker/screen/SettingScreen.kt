@@ -14,7 +14,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowColumn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -69,6 +68,7 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.BuildConfig
 import org.aquamarine5.brainspark.chaoxingsignfaker.R
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingRecommendHelper
+import org.aquamarine5.brainspark.chaoxingsignfaker.components.CurrentDataStoreDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CustomizeClientCard
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.SnackbarAlertDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.datastore.RecommendHabit
@@ -441,7 +441,8 @@ fun SettingScreen(
             enter = slideInVertically(),
             exit = slideOutVertically()
         ) {
-            FlowColumn() {
+            Column {
+                var isDataStoreDialogVisible by remember { mutableStateOf(false) }
                 Button(onClick = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
                     coroutineScope.launch(Dispatchers.IO) {
@@ -451,6 +452,17 @@ fun SettingScreen(
                     }
                 }) {
                     Text("ResetAllStoredLearntTooltips")
+                }
+                Button(onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
+                    isDataStoreDialogVisible = true
+                }) {
+                    Text("LoadCurrentDataStore")
+                }
+                if (isDataStoreDialogVisible) {
+                    CurrentDataStoreDialog(onDismissRequest = {
+                        isDataStoreDialogVisible = false
+                    })
                 }
             }
         }

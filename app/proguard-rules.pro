@@ -38,6 +38,12 @@
    <fields>;
 }
 
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
+   *** get*();
+   boolean has*();
+   void set*(...);
+}
+
 
 
 

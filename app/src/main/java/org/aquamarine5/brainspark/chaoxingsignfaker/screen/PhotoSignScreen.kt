@@ -57,9 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.aquamarine5.brainspark.chaoxingsignfaker.R
@@ -68,7 +68,8 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingCourseHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClientPool
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingRecommendHelper
-import org.aquamarine5.brainspark.chaoxingsignfaker.api.SignDestination
+import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingSignHelper
+import org.aquamarine5.brainspark.chaoxingsignfaker.entity.SignDestination
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CameraComponent
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CaptchaHandlerDialog
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CaptchaHandlerParams
@@ -339,7 +340,11 @@ fun PhotoSignScreen(
                                 },
                                 isCloneSession = destination.isCloneSession,
                                 onRetrySignAction = { index, session, bypassChecking ->
-                                    signHandler.retryOtherUserSigning(session, index, bypassChecking)
+                                    signHandler.retryOtherUserSigning(
+                                        session,
+                                        index,
+                                        bypassChecking
+                                    )
                                 }
                             ) { isSelf, otherUserSessionList, _ ->
                                 isSigning.value = true
@@ -474,9 +479,11 @@ fun PhotoSignScreen(
                                                             val objectId =
                                                                 ChaoxingCloudDriveHelper.uploadImage(
                                                                     client,
-                                                                    randomizeStylizeImage(value[bitmapIndexList.indexOf(
-                                                                        index + 1
-                                                                    )])
+                                                                    randomizeStylizeImage(
+                                                                        value[bitmapIndexList.indexOf(
+                                                                            index + 1
+                                                                        )]
+                                                                    )
                                                                 )
                                                             if (signByImage(objectId)) {
                                                                 val resolution =
@@ -549,7 +556,8 @@ fun PhotoSignScreen(
                                                             destination.endTime,
                                                             destination.isLate
                                                         )
-                                                }, onRetrySignAction = { index, session, bypassChecking ->
+                                                },
+                                                onRetrySignAction = { index, session, bypassChecking ->
                                                     signHandler.retryOtherUserSigning(
                                                         session,
                                                         index,
@@ -586,15 +594,17 @@ fun PhotoSignScreen(
                                                                 onDismissRequest = {
                                                                     isShowDialog = false
                                                                 },
-                                                                 confirmButton = {
-                                                                     Button(onClick = {
-                                                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
-                                                                         isShowDialog =
-                                                                             false
-                                                                     }) {
-                                                                         Text("关闭")
-                                                                     }
-                                                                 },
+                                                                confirmButton = {
+                                                                    Button(onClick = {
+                                                                        hapticFeedback.performHapticFeedback(
+                                                                            HapticFeedbackType.ContextClick
+                                                                        )
+                                                                        isShowDialog =
+                                                                            false
+                                                                    }) {
+                                                                        Text("关闭")
+                                                                    }
+                                                                },
                                                                 text = { _ ->
                                                                     Image(
                                                                         bitmapList[it].asImageBitmap(),
@@ -762,9 +772,10 @@ fun PhotoSignScreen(
                                                             context.contentResolver.decodePhotoBitmap(
                                                                 uri
                                                             )
-                                                        } ?: throw ChaoxingPhotoSigner.ChaoxingPhotoSignException(
-                                                            "无法读取照片"
-                                                        )
+                                                        }
+                                                            ?: throw ChaoxingPhotoSigner.ChaoxingPhotoSignException(
+                                                                "无法读取照片"
+                                                            )
                                                     randomizeStylizeImage(bitmap).also {
                                                         bitmap.recycle()
                                                     }.let { stylized ->

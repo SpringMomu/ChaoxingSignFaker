@@ -66,6 +66,11 @@ object ChaoxingIMHelper {
     val IM_ENCRYPTED_KEY = BuildConfig.imEncryptedKey.toByteArray(Charsets.UTF_8)
 
     fun desDecrypt(imEncryptedPassword: String): String {
+        if (IM_ENCRYPTED_KEY.isEmpty())
+            throw ChaoxingIMConfigParseException(
+                "imEncryptedKey",
+                "构建时未配置 imEncryptedKey，无法解密IM密码，请在 local.properties 中配置后重新编译"
+            )
         @Suppress("GetInstance")
         val cipher = Cipher.getInstance("DES/ECB/PKCS5Padding")
         val secretKey = SecretKeySpec(IM_ENCRYPTED_KEY, "DES")

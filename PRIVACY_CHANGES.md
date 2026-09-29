@@ -49,7 +49,7 @@ APK：`app/build/outputs/apk/release/app-release.apk`。
 直接运行 `assembleRelease` 时若两种签名都未配置，则输出 unsigned APK。
 
 新建本地签名与原版签名不同，通常不能覆盖安装原版。原项目百度地图 API Key 的签名鉴权需在实机确认。
-旧版群聊解密路径需要原项目的 `imEncryptedKey` 构建配置；本次没有生成或替换该业务密钥。
+上游已在代码中内置群聊解密密钥，构建时不再需要配置 `imEncryptedKey`。
 
 ## 验证范围
 

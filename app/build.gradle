@@ -18,16 +18,6 @@ if (localSigningFile.exists()) {
     localSigningFile.withInputStream { localSigningProperties.load(it) }
 }
 
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withInputStream { localProperties.load(it) }
-}
-def imEncryptedKey = (project.findProperty("imEncryptedKey")
-        ?: System.getenv("imEncryptedKey")
-        ?: localProperties.getProperty("imEncryptedKey")
-        ?: "").toString().trim()
-
 android {
     namespace = "org.aquamarine5.brainspark.chaoxingsignfaker"
     compileSdk = 37
@@ -82,18 +72,10 @@ android {
                 signingConfig signingConfigs.localRelease
             }
             buildConfigField("String", "releaseDate", "\"${new Date().format('yyyy-MM-dd HH:mm:ss')}\"")
-            buildConfigField("String", "imEncryptedKey", "\"${imEncryptedKey}\"")
         }
         debug {
             if (System.getenv("keystorePassword")) signingConfig signingConfigs.chaoxingsignfaker
             buildConfigField("String", "releaseDate", "\"${new Date().format('yyyy-MM-dd HH:mm:ss')}\"")
-            buildConfigField("String", "imEncryptedKey", "\"${imEncryptedKey}\"")
-        }
-    }
-
-    gradle.taskGraph.whenReady { graph ->
-        if (imEncryptedKey.isEmpty() && graph.allTasks.any { it.name.toLowerCase().contains("release") }) {
-            throw new GradleException("imEncryptedKey is not set. Add imEncryptedKey=<key> to local.properties, or pass -PimEncryptedKey / env imEncryptedKey; otherwise group chat sign-in fails with 'Empty key'.")
         }
     }
 

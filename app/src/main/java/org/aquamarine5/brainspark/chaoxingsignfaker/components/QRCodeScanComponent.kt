@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -109,6 +110,7 @@ fun QRCodeScanComponent(
                     cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                 }
             }
+            val lastScannedValue = remember { mutableStateOf<String?>(null) }
             val photoPickerLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.PickVisualMedia()
             ) { uri: Uri? ->
@@ -163,7 +165,10 @@ fun QRCodeScanComponent(
                             if (result != null) {
                                 cameraExecutor.execute {
                                     if (!disposed && !isPause.value && !isLoading.value) {
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
+                                        if (result != lastScannedValue.value) {
+                                            lastScannedValue.value = result
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
+                                        }
                                         scanResultCallback.value(result)
                                     }
                                 }
@@ -275,7 +280,10 @@ fun QRCodeScanComponent(
                         .zIndex(0f)
                 )
                 Button(
-                    onClick = onClose,
+                    onClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        onClose()
+                    },
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)

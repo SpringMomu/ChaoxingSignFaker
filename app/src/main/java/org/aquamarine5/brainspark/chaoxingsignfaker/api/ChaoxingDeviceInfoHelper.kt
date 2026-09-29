@@ -15,7 +15,9 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Base64
 import com.alibaba.fastjson2.JSONObject
+import kotlinx.coroutines.flow.first
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.chaoxingApplicationPackageName
+import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.requirePredictable
 import java.io.ByteArrayOutputStream
 import java.math.BigInteger
@@ -60,6 +62,17 @@ object ChaoxingDeviceInfoHelper {
             }
             JSONObject.parseObject(output.toString(Charsets.UTF_8.name()))
         }.getOrNull()
+
+    suspend fun getCachedLocalMachineDeviceCode(context: Context): String =
+        context.chaoxingDataStore.data.first().loginSession.deviceCode
+
+    fun randomizedDeviceCode(): String {
+        val rawData = MessageDigest.getInstance("SHA-256").digest(
+            (UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString()
+                .replace("-", "")).toByteArray()
+        )
+        return Base64.encodeToString(rawData + rawData, Base64.NO_WRAP)
+    }
 
     @SuppressLint("HardwareIds")
     private fun buildDeviceInfo(context: Context): JSONObject {

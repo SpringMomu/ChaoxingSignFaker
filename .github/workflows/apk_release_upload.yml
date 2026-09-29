@@ -27,13 +27,11 @@ jobs:
         env:
           GHP_TOKEN: ${{ secrets.GHP_TOKEN }}
           keystorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          imEncryptedKey: ${{ secrets.IMENCRYPTEDKEY }}
       - name: Build apk file with Gradle
         run: ./gradlew assembleRelease
         env:
           GHP_TOKEN: ${{ secrets.GHP_TOKEN }}
           keystorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          imEncryptedKey: ${{ secrets.IMENCRYPTEDKEY }}
       - name: Get version code
         id: version
         run: echo "VERSION=${GITHUB_REF:10}" >> $GITHUB_OUTPUT

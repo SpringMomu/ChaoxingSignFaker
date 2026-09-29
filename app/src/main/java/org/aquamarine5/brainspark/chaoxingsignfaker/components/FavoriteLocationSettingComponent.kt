@@ -318,7 +318,7 @@ fun FavoriteLocationSettingComponent(modifier: Modifier = Modifier) {
                             (p0?.zoom ?: 0f) >= MARKER_TITLE_VISIBLE_ZOOM
                         if (isMarkerTitleVisible != isTitleVisible) {
                             isMarkerTitleVisible = isTitleVisible
-                            map.updateMarkerTitlesVisibility(
+                            updateMarkerTitlesVisibility(
                                 favoriteLocationMarkers,
                                 null,
                                 isTitleVisible
@@ -338,7 +338,7 @@ fun FavoriteLocationSettingComponent(modifier: Modifier = Modifier) {
                     )
                 }
             }
-            baiduMap.map.updateMarkerTitlesVisibility(
+            updateMarkerTitlesVisibility(
                 favoriteLocationMarkers,
                 null,
                 isMarkerTitleVisible
@@ -462,7 +462,7 @@ fun FavoriteLocationSettingComponent(modifier: Modifier = Modifier) {
                         favoriteLocationMarkers.add(
                             baiduMap.map.addFavoriteLocationMarker(newFavoriteLocation, starBitmap)
                         )
-                        baiduMap.map.updateMarkerTitlesVisibility(
+                        updateMarkerTitlesVisibility(
                             favoriteLocationMarkers,
                             null,
                             isMarkerTitleVisible

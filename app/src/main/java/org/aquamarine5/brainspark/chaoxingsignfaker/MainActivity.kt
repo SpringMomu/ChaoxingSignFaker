@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 //noinspection UsingMaterialAndMaterial3Libraries
@@ -59,6 +60,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -87,12 +90,13 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingFaceHelper
 import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClient
-import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpClientPool
+import org.aquamarine5.brainspark.chaoxingsignfaker.api.ChaoxingHttpRequesterPool
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CenterCircularProgressIndicator
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.CloneSessionTips
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.FavoriteLocationSettingComponent
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.FavoriteLocationSettingDestination
 import org.aquamarine5.brainspark.chaoxingsignfaker.components.initializeClientInfo
+import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingCourseEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingEasemobIMGroup
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingSignActivityEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.NavigationBarItemData
@@ -173,8 +177,13 @@ class MainActivity : ComponentActivity() {
                                 exit = shrinkVertically()
                             ) {
                                 BottomNavigation(
-                                    backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-                                    elevation = 14.dp
+                                    modifier = Modifier
+                                        .shadow(14.dp, clip = false)
+                                        .background(MaterialTheme.colorScheme.primaryContainer)
+                                        .navigationBarsPadding(),
+                                    backgroundColor = Color.Transparent,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    elevation = 0.dp
                                 ) {
                                     remember {
                                         listOf(
@@ -292,7 +301,7 @@ class MainActivity : ComponentActivity() {
                                     withContext(Dispatchers.IO) {
                                         val datastore =
                                             applicationContext.chaoxingDataStore.data.first()
-                                        ChaoxingHttpClientPool.initialize(datastore.otherUsersList)
+                                        ChaoxingHttpRequesterPool.initialize(datastore.otherUsersList)
                                         ChaoxingFaceHelper.storedFaceRecognitionImages.setValue(
                                             datastore.faceRecognitionConfiguresMap.mapValues { it.value.imagesList }
                                         )
@@ -339,7 +348,7 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     val coroutineScope = rememberCoroutineScope()
                                     val isCloning =
-                                        ChaoxingHttpClient.cloneInstance?.userEntity != null
+                                        ChaoxingHttpClient.cloneInstance != null
                                     val exitCloneMode = {
                                         hapticFeedback.performHapticFeedback(
                                             HapticFeedbackType.ContextClick
@@ -522,7 +531,11 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 }
 
-                                                composable<CourseDetailDestination> {
+                                                composable<CourseDetailDestination>(
+                                                    typeMap = mapOf(
+                                                        typeOf<List<ChaoxingCourseEntity>>() to ChaoxingCourseEntity.Companion.ChaoxingCourseEntityListNavType
+                                                    )
+                                                ) {
                                                     CourseDetailScreen(
                                                         it.toRoute(),
                                                         navToSignerDestination = { destination ->

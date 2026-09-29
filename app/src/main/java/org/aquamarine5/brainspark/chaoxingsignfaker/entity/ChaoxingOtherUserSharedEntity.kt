@@ -17,6 +17,7 @@ data class ChaoxingOtherUserSharedEntity(
     val encryptedPassword: String,
     val userName: String,
     val faceObjectIds: List<String> = emptyList(),
+    val deviceCode: String? = null,
 ) {
     companion object {
         fun parseFromQRCode(qrcode: String): ChaoxingOtherUserSharedEntity {
@@ -38,11 +39,13 @@ data class ChaoxingOtherUserSharedEntity(
                     ?.filter { it.isNotBlank() }
                     ?.distinct()
                     .orEmpty()
+                val deviceCode = parameters["dc"]?.takeIf { it.isNotEmpty() }
                 ChaoxingOtherUserSharedEntity(
                     phoneNumber,
                     password,
                     userName,
                     faceObjectIds,
+                    deviceCode,
                 )
             }.getOrElse {
                 throw ChaoxingOtherUserHelper.NotAvailableQRCodeException("此二维码不能作用于添加用户")

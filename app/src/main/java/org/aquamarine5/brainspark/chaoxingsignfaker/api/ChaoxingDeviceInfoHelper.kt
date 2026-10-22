@@ -63,8 +63,24 @@ object ChaoxingDeviceInfoHelper {
             JSONObject.parseObject(output.toString(Charsets.UTF_8.name()))
         }.getOrNull()
 
-    suspend fun getCachedLocalMachineDeviceCode(context: Context): String =
-        context.chaoxingDataStore.data.first().loginSession.deviceCode
+    suspend fun getCachedLocalMachineDeviceCode(context: Context): String {
+        context.chaoxingDataStore.data.first().loginSession.deviceCode.takeIf { it.isNotEmpty() }
+            ?.let { return it }
+        // 隐私清理版不再读取 OAID，改为首次使用时生成并持久化一个本机设备码，
+        // 这样分享二维码里的 dc 参数才不会是空值，对方扫码后才能绑定统一的设备码。
+        return context.chaoxingDataStore.updateData { currentDataStore ->
+            if (currentDataStore.loginSession.deviceCode.isNotEmpty()) {
+                currentDataStore
+            } else {
+                currentDataStore.toBuilder().setLoginSession(
+                    currentDataStore.loginSession.toBuilder()
+                        .setDeviceCode(randomizedDeviceCode())
+                        .setIsNotRandomizedDeviceCode(true)
+                        .build()
+                ).build()
+            }
+        }.loginSession.deviceCode
+    }
 
     fun randomizedDeviceCode(): String {
         val rawData = MessageDigest.getInstance("SHA-256").digest(

@@ -178,10 +178,12 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingImportOtherUs
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingOtherUserSharedEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ImportOtherUserResult
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.getResultTips
+import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingUserSessionOutdatedException
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.LocalSnackbarHostState
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.checkPredictable
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.displaySnackbar
+import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.getThisOrCauseNetworkExceptionMessage
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.isDevelopedMode
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.snackbarReport
 import sh.calvin.reorderable.DragGestureDetector
@@ -1515,7 +1517,10 @@ fun OtherUserScreen(
                             repairSessionIndex = null
                         }.onFailure {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.Reject)
-                            errorMessage = "登录失败：" + (it.message ?: "未知错误")
+                            errorMessage = "登录失败：" +
+                                    (it.getThisOrCauseNetworkExceptionMessage()
+                                        ?: it.message
+                                        ?: "未知错误")
                         }
                     }
                 }, modifier = Modifier.fillMaxWidth()) { Text("重新登录") }
@@ -3078,8 +3083,7 @@ fun OtherUserScreen(
                                                                         client
                                                                     naviCloneCourseListScreen()
                                                                 }.onFailure { failure ->
-                                                                    (failure as? ChaoxingHttpClient.ChaoxingGetUserInfoException)
-                                                                        ?.takeIf { it.isOtherUser }
+                                                                    (failure as? ChaoxingUserSessionOutdatedException)
                                                                         ?.let {
                                                                             coroutineScope.launch {
                                                                                 runCatching {

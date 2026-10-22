@@ -33,6 +33,7 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingEasemobIMConf
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingOtherUserSharedEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.entity.ChaoxingUserEntity
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingParseDataException
+import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.ChaoxingUserSessionOutdatedException
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.chaoxingDataStore
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.checkPredictable
 import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.checkResponseThrowException
@@ -105,12 +106,15 @@ class ChaoxingHttpClient internal constructor(
     class ChaoxingGetUserInfoException(
         message: String,
         throwable: Throwable? = null,
-        val isOtherUser: Boolean,
         data: String? = null
     ) :
         ChaoxingParseDataException(message, throwable, data)
 
-    class ChaoxingNetworkException(message: String? = null, throwable: Throwable? = null) :
+    class ChaoxingNetworkException(
+        message: String? = null,
+        throwable: Throwable? = null,
+        val responseCode: Int? = null
+    ) :
         ChaoxingParseDataException(message ?: "网络错误", throwable)
 
     private var storageIMConfig: ChaoxingEasemobIMConfig? = null
@@ -416,10 +420,9 @@ class ChaoxingHttpClient internal constructor(
                     if (throwable is CancellationException) throw throwable
                     if (otherUserSession != null) {
                         if (isRetryAfterRelogin) {
-                            throw ChaoxingGetUserInfoException(
+                            throw ChaoxingUserSessionOutdatedException(
                                 "获取代签用户信息失败",
                                 throwable,
-                                true,
                                 userInfoResponse
                             )
                         }
@@ -435,10 +438,9 @@ class ChaoxingHttpClient internal constructor(
                             )
                         }.onFailure { reloginFailure ->
                             if (reloginFailure is CancellationException) throw reloginFailure
-                            throw ChaoxingGetUserInfoException(
+                            throw ChaoxingUserSessionOutdatedException(
                                 "获取代签用户信息失败",
                                 throwable,
-                                true,
                                 userInfoResponse
                             )
                         }
@@ -446,7 +448,6 @@ class ChaoxingHttpClient internal constructor(
                     throw ChaoxingGetUserInfoException(
                         "获取用户信息失败",
                         throwable,
-                        false,
                         userInfoResponse
                     )
                 }
@@ -470,7 +471,7 @@ class ChaoxingHttpClient internal constructor(
             return schools.map { it.key to it.value }
         }
 
-        private suspend fun reLoginFromOtherSession(
+        internal suspend fun reLoginFromOtherSession(
             client: OkHttpClient,
             context: Context,
             otherUserSession: ChaoxingOtherUserSession
@@ -503,6 +504,7 @@ class ChaoxingHttpClient internal constructor(
                                             .setHost(cookie.domain).build()
                                     }
                                 )
+                                .setIsObsoleteSession(false)
                                 .build())
                     }
                 }.build()
@@ -663,27 +665,6 @@ class ChaoxingHttpClient internal constructor(
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv)
             val encrypted = cipher.doFinal(message.toByteArray(Charsets.UTF_8))
             return Base64.getEncoder().encodeToString(encrypted)
-        }
-    }
-
-    suspend fun reLogin(context: Context): Boolean {
-        runCatching {
-            context.chaoxingDataStore.data.first().let {
-                if (it.loginSession.phoneNumber.isNullOrEmpty() || it.loginSession.password.isNullOrEmpty()) {
-                    return false
-                }
-                login(
-                    okHttpClient,
-                    it.loginSession.phoneNumber,
-                    it.loginSession.password,
-                    context,
-                    isEncryptedPassword = true
-                )
-            }
-            return true
-        }.getOrElse {
-            if (it is CancellationException) throw it
-            return false
         }
     }
 }

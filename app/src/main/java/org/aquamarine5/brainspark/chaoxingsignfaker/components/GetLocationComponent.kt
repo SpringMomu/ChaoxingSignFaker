@@ -115,6 +115,7 @@ import org.aquamarine5.brainspark.chaoxingsignfaker.utilities.updateMarkerTitles
 @Composable
 fun GetLocationComponent(
     locationInfo: ChaoxingLocationDetailEntity? = null,
+    classId: Int,
     confirmButtonText: @Composable () -> Unit,
     onLocationResult: (ChaoxingLocationSignEntity) -> Unit
 ) {
@@ -168,6 +169,9 @@ fun GetLocationComponent(
             val favoriteLocationMarkers = remember { mutableListOf<Marker>() }
             var isMarkerTitleVisible = remember { true }
             var lastSignedLocationMarker: Marker? = remember { null }
+            var rememberedSignedLocation by remember {
+                mutableStateOf<ChaoxingLocation?>(null)
+            }
             val markerPositionIcon = remember {
                 BitmapDescriptorFactory.fromResource(R.drawable.ic_geo_alt_fill)
             }
@@ -318,18 +322,21 @@ fun GetLocationComponent(
                                             .build()
                                     )
 
-                                    if (clickedName == "未指定") {
+                                    if (marker == null) {
+                                        val rememberedLocation = rememberedSignedLocation
+                                        val initialPosition =
+                                            rememberedLocation?.let { remembered ->
+                                                LatLng(remembered.latitude, remembered.longitude)
+                                            } ?: LatLng(it.latitude, it.longitude)
                                         map.setMapStatus(
                                             MapStatusUpdateFactory.newLatLng(
-                                                LatLng(
-                                                    it.latitude,
-                                                    it.longitude
-                                                )
+                                                initialPosition
                                             )
                                         )
-                                        clickedPosition = LatLng(it.latitude, it.longitude)
-                                        clickedName = it.addrStr?.removePrefix("中国") ?: ""
-                                        clickedLabel = null
+                                        clickedPosition = initialPosition
+                                        clickedName = rememberedLocation?.address
+                                            ?: it.addrStr?.removePrefix("中国") ?: ""
+                                        clickedLabel = rememberedLocation?.label
                                     } else {
                                         map.animateMapStatus(
                                             MapStatusUpdateFactory.newLatLngZoom(
@@ -578,11 +585,17 @@ fun GetLocationComponent(
                             baiduMap.map.addFavoriteLocationMarker(it, starBitmap)
                         )
                     }
-                    if (data.preferences.hasLastSignedLocation()) {
-                        val last = data.preferences.lastSignedLocation
+                    if (data.containsClassRememberedLocation(classId)) {
+                        rememberedSignedLocation =
+                            data.getClassRememberedLocationOrThrow(classId)
+                    } else if (data.preferences.hasLastSignedLocation()) {
+                        rememberedSignedLocation = data.preferences.lastSignedLocation
+                    }
+                    rememberedSignedLocation?.let { last ->
+                        val rememberedPosition = LatLng(last.latitude, last.longitude)
                         lastSignedLocationMarker = baiduMap.map.addOverlay(
                             MarkerOptions()
-                                .position(LatLng(last.latitude, last.longitude))
+                                .position(rememberedPosition)
                                 .anchor(0.5f, 0.5f)
                                 .icon(lastSignedLocationBitmap)
                                 .extraInfo(Bundle().apply {
@@ -592,6 +605,15 @@ fun GetLocationComponent(
                                     )
                                 })
                         ) as Marker
+                        if (marker == null) {
+                            baiduMap.map.animateMapStatus(
+                                MapStatusUpdateFactory.newLatLng(rememberedPosition),
+                                1000
+                            )
+                            clickedPosition = rememberedPosition
+                            clickedName = last.address
+                            clickedLabel = last.label
+                        }
                     }
                     updateMarkerTitlesVisibility(
                         favoriteLocationMarkers,

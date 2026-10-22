@@ -10,6 +10,8 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import okhttp3.Call
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -38,6 +40,34 @@ open class ChaoxingHttpRequester internal constructor(
     var storageCloudToken: String? = null
 
     fun newCall(request: Request): Call = okHttpClient.newCall(request)
+
+    suspend fun reLogin(context: Context): Boolean {
+        val dataStore = context.chaoxingDataStore.data.first()
+        return runCatching {
+            if (dataStore.loginSession.phoneNumber == phoneNumber) {
+                val loginSession = dataStore.loginSession
+                if (loginSession.phoneNumber.isNullOrEmpty() ||
+                    loginSession.password.isNullOrEmpty()
+                ) return false
+                ChaoxingHttpClient.login(
+                    okHttpClient,
+                    loginSession.phoneNumber,
+                    loginSession.password,
+                    context,
+                    isEncryptedPassword = true
+                )
+            } else {
+                val session = dataStore.otherUsersList.firstOrNull {
+                    it.phoneNumber == phoneNumber
+                } ?: return false
+                ChaoxingHttpClient.reLoginFromOtherSession(okHttpClient, context, session)
+            }
+            true
+        }.getOrElse { throwable ->
+            if (throwable is CancellationException) throw throwable
+            false
+        }
+    }
 
     suspend fun toChaoxingHttpClient(context: Context): ChaoxingHttpClient {
         val (userEntity, puid) = ChaoxingHttpClient.getInfoWithIdentity(

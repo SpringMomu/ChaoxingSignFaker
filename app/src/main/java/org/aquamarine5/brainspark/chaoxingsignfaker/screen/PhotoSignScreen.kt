@@ -173,12 +173,12 @@ fun PhotoSignScreen(
                         client,
                         destination
                     ).let {
-                        signActivityStatus = it.preSign()
+                        signActivityStatus = it.preSign(context)
                         it.ifPhotoRequiredLogin()
                     }
                 }
             } else {
-                signActivityStatus = signer.preSign()
+                signActivityStatus = signer.preSign(context)
                 signer.ifPhotoRequiredLogin()
             }
             isImage = data.first
@@ -204,12 +204,12 @@ fun PhotoSignScreen(
                                     client,
                                     destination
                                 ).let {
-                                    signActivityStatus = it.preSign()
+                                    signActivityStatus = it.preSign(context)
                                     it.ifPhotoRequiredLogin()
                                 }
                             }
                         } else {
-                            signActivityStatus = signer.preSign()
+                            signActivityStatus = signer.preSign(context)
                             signer.ifPhotoRequiredLogin()
                         }
                         isImage = data.first
@@ -224,7 +224,7 @@ fun PhotoSignScreen(
                 }
             }
         } else {
-            Crossfade(signActivityStatus, animationSpec = tween(700)) { c ->
+            Crossfade(signActivityStatus) { c ->
                 if (c == ChaoxingSignActivityStatus.READY_TO_SIGN) {
                     Crossfade(isImage) { image ->
                         if (image == false) {
@@ -284,7 +284,9 @@ fun PhotoSignScreen(
                                                             ) else destination,
                                                             signer.getSignInfo()
                                                         ).run {
-                                                            if (!(isAlwaysForceSign || bypassChecking)) checkSignStatusThrowException()
+                                                            if (!(isAlwaysForceSign || bypassChecking)) checkSignStatusThrowException(
+                                                                context
+                                                            )
                                                             if (signByClick()) {
                                                                 val resolution =
                                                                     suspendCancellableCoroutine { continuation ->
@@ -483,7 +485,9 @@ fun PhotoSignScreen(
                                                                 ) else destination,
                                                                 signer.getSignInfo()
                                                             ).run {
-                                                                if (!(isAlwaysForceSign || bypassChecking)) checkSignStatusThrowException()
+                                                                if (!(isAlwaysForceSign || bypassChecking)) checkSignStatusThrowException(
+                                                                    context
+                                                                )
                                                                 val objectId =
                                                                     ChaoxingCloudDriveHelper.uploadImage(
                                                                         client,

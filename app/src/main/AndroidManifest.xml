@@ -17,6 +17,12 @@
 
     <uses-feature android:name="android.hardware.camera" />
 
+    <permission
+        android:name="org.aquamarine5.brainspark.chaoxingsignfaker.permission.QUERY_CHAOXING_INFORMATION"
+        android:protectionLevel="normal" />
+
+    <uses-permission android:name="org.aquamarine5.brainspark.chaoxingsignfaker.permission.QUERY_CHAOXING_INFORMATION" />
+
     <queries>
         <package android:name="com.chaoxing.mobile" />
         <package android:name="com.chaoxing.mobile.xuezaixidian" />
@@ -46,6 +52,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
 
             </intent-filter>
+            <intent-filter>
+                <action android:name="org.aquamarine5.brainspark.chaoxingsignfaker.action.OPEN_SIGN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="org.aquamarine5.brainspark.chaoxingsignfaker.action.OPEN_SETTING_TO_ALLOW_EXTERNAL_QUERY_PERMISSION" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
         <activity
             android:name=".ImportOtherUserActivity"
@@ -68,6 +84,12 @@
             android:name="com.baidu.location.f"
             android:enabled="true"
             android:process=":remote" />
+
+        <provider
+            android:name=".ChaoxingExternalCourseProvider"
+            android:authorities="org.aquamarine5.brainspark.chaoxingsignfaker.coursesProvider"
+            android:exported="true"
+            android:permission="org.aquamarine5.brainspark.chaoxingsignfaker.permission.QUERY_CHAOXING_INFORMATION" />
 
         <meta-data
             android:name="com.baidu.lbsapi.API_KEY"

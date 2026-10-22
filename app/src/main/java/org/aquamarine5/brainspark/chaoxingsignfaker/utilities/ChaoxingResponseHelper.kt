@@ -52,6 +52,10 @@ fun Throwable.getNetworkExceptionMessage(): String? = when (this) {
     else -> null
 }
 
+fun Throwable.getThisOrCauseNetworkExceptionMessage(): String? =
+    generateSequence(this) { it.cause }
+        .firstNotNullOfOrNull { it.getNetworkExceptionMessage() }
+
 fun Response.checkResponseThrowException() {
     if (!isSuccessful) {
         throw ChaoxingHttpClient.ChaoxingNetworkException(
@@ -60,7 +64,8 @@ fun Response.checkResponseThrowException() {
                 404 -> "网络异常，资源未找到"
                 500 -> "网络异常，服务器内部错误"
                 else -> "网络异常，错误码：$code"
-            } + "，响应体：${body.string()}"
+            } + "，响应体：${body.string()}",
+            responseCode = code
         )
     }
 }
@@ -114,10 +119,17 @@ fun Throwable.toastReport(
     this.printStackTrace()
     hapticFeedback?.performHapticFeedback(HapticFeedbackType.Reject)
     val networkExceptionTips = this.getNetworkExceptionMessage()
+    val thisOrCauseNetworkExceptionTips = this.getThisOrCauseNetworkExceptionMessage()
     if (networkExceptionTips != null) {
         Toast.makeText(
             context,
             "${prefixTips?.plus(" ") ?: ""}$networkExceptionTips",
+            Toast.LENGTH_LONG
+        ).show()
+    } else if (thisOrCauseNetworkExceptionTips != null) {
+        Toast.makeText(
+            context,
+            "${prefixTips?.plus(" ") ?: ""}${this.getPredictableMessage()}$thisOrCauseNetworkExceptionTips",
             Toast.LENGTH_LONG
         ).show()
     } else if (this !is ChaoxingPredictableException) {
@@ -152,12 +164,26 @@ fun Throwable.snackbarReport(
     this.printStackTrace()
     hapticFeedback.performHapticFeedback(HapticFeedbackType.Reject)
     val networkExceptionTips = this.getNetworkExceptionMessage()
+    val thisOrCauseNetworkExceptionTips = this.getThisOrCauseNetworkExceptionMessage()
     if (networkExceptionTips != null) {
         if (shouldDismiss)
             snackbarHostState?.currentSnackbarData?.dismiss()
         coroutineScope.launch {
             snackbarHostState?.showSnackbar(
                 "${prefixTips?.plus(" ") ?: ""}$networkExceptionTips",
+                actionLabel,
+                true,
+                duration
+            )?.apply {
+                onSnackbarResult?.invoke(this)
+            }
+        }
+    } else if (thisOrCauseNetworkExceptionTips != null) {
+        if (shouldDismiss)
+            snackbarHostState?.currentSnackbarData?.dismiss()
+        coroutineScope.launch {
+            snackbarHostState?.showSnackbar(
+                "${prefixTips?.plus(" ") ?: ""}${this@snackbarReport.getPredictableMessage()}$thisOrCauseNetworkExceptionTips",
                 actionLabel,
                 true,
                 duration
@@ -210,6 +236,10 @@ fun Throwable.snackbarReport(
         }
     }
 }
+
+val Throwable.isSessionObsoletedCausing: Boolean
+    get() = generateSequence(this) { it.cause }
+        .any { it is ChaoxingUserSessionOutdatedException }
 
 fun Throwable.ifShouldDeselect(action: () -> Unit) {
     if (this is ChaoxingSigner.AlreadySignedException ||
